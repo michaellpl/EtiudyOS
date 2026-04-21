@@ -1,0 +1,3432 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>EtiudyOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+<style>
+:root {
+  --bg1:#bdd0f8;--bg2:#d8e8ff;--bg3:#c4daff;
+  --surface:#ffffff;
+  --surface2:#f0f5ff;
+  --dark:#111827;--dark2:#1c2540;--dark3:#24305a;
+  --lime:#9ef030;--lime2:#b8ff50;--lime-dark:#6fc010;
+  --blue:#4a7ff5;--blue2:#6b95ff;
+  --teal:#00c4b4;
+  --pink:#f472b6;
+  --text:#111827;--text-dim:#6b7280;--text-faint:#c0ccdd;
+  --text-dark:#ffffff;--text-dark-dim:rgba(255,255,255,.55);
+  --shadow:0 4px 28px rgba(60,100,200,.11);
+  --shadow-lg:0 8px 40px rgba(60,100,200,.16);
+  --shadow-dark:0 6px 32px rgba(0,0,0,.32);
+  --r:22px;--r-sm:14px;--r-pill:50px;
+  --nav-w:90px;--gap:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  height:100%;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  background:linear-gradient(155deg,var(--bg1) 0%,var(--bg2) 45%,var(--bg3) 100%);
+  background-attachment:fixed;
+  color:var(--text);
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+
+/* ========== BIRTHDAY OVERLAY ========== */
+#birthdayOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,#1f0a40 0%,#06060f 70%);overflow:hidden;}
+#birthdayOverlay.show{display:flex;}
+.bd-star{position:absolute;border-radius:50%;background:#fff;animation:bdTwinkle ease-in-out infinite;}
+@keyframes bdTwinkle{0%,100%{opacity:.1;transform:scale(1);}50%{opacity:.9;transform:scale(1.6);}}
+.bd-confetti{position:absolute;top:-30px;border-radius:3px;animation:bdFall linear infinite;}
+@keyframes bdFall{0%{transform:translateY(0) rotateZ(0deg);opacity:1;}80%{opacity:1;}100%{transform:translateY(110vh) rotateZ(600deg);opacity:0;}}
+#bdContent{position:relative;z-index:2;text-align:center;padding:30px 40px;animation:bdIn .85s cubic-bezier(.34,1.56,.64,1) forwards;}
+@keyframes bdIn{from{transform:scale(.15) translateY(100px);opacity:0;}to{transform:scale(1) translateY(0);opacity:1;}}
+#bdCake{font-size:clamp(80px,12vw,120px);display:block;margin-bottom:12px;animation:bdBounce 1.3s ease-in-out infinite alternate;filter:drop-shadow(0 0 40px rgba(245,158,11,.7));}
+@keyframes bdBounce{from{transform:translateY(0) scale(1);}to{transform:translateY(-22px) scale(1.07);}}
+#bdTitle{font-size:clamp(44px,5.5vw,74px);font-weight:800;line-height:1.1;margin-bottom:14px;background:linear-gradient(135deg,#fff 0%,#fbbf24 35%,#fff 65%,#fbbf24 100%);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:bdShimmer 4s linear infinite;}
+@keyframes bdShimmer{from{background-position:0% center;}to{background-position:300% center;}}
+#bdName{font-size:clamp(70px,11vw,130px);font-weight:800;color:#f59e0b;margin-bottom:18px;text-shadow:0 0 60px rgba(245,158,11,.9);animation:bdPulse 1.8s ease-in-out infinite;}
+@keyframes bdPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+#bdSto{font-size:clamp(28px,3.5vw,48px);font-weight:700;color:#e2e8f0;margin-bottom:32px;letter-spacing:3px;}
+#bdProgressWrap{width:min(480px,80vw);height:10px;background:rgba(255,255,255,.15);border-radius:5px;margin:0 auto 24px;overflow:hidden;}
+#bdProgressBar{height:100%;width:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:5px;transition:width .1s linear;}
+#bdCloseBtn{background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.25);color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:700;padding:12px 44px;border-radius:50px;cursor:pointer;transition:background .2s;}
+#bdCloseBtn:hover{background:rgba(255,255,255,.22);}
+
+/* ========== LEFT SIDEBAR NAV ========== */
+#sideNav{
+  position:fixed;top:0;left:0;bottom:0;width:var(--nav-w);
+  display:flex;flex-direction:column;align-items:center;
+  padding:10px 0 8px;z-index:100;
+  background:var(--dark);
+  overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:none;
+}
+#sideNav::-webkit-scrollbar{display:none;}
+#sideNavLogo{font-size:16px;font-weight:800;color:var(--lime);letter-spacing:-.3px;margin-bottom:8px;line-height:1;}
+#sideNavTime{font-size:17px;font-weight:800;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1;}
+.nav-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:76px;height:66px;border-radius:16px;border:none;background:transparent;color:rgba(255,255,255,.4);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;flex-shrink:0;padding:0;}
+.nav-btn .nav-icon{font-size:27px;line-height:1;}
+.nav-btn:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.06);}
+.nav-btn.active{background:var(--lime);color:var(--dark);}
+
+/* ========== PANELS ========== */
+#panels{position:fixed;top:24px;bottom:0;left:var(--nav-w);right:0;overflow-y:auto;overflow-x:hidden;padding:var(--gap);scrollbar-width:thin;scrollbar-color:rgba(100,140,200,.25) transparent;}
+#panels::-webkit-scrollbar{width:4px;}
+#panels::-webkit-scrollbar-thumb{background:rgba(100,140,200,.3);border-radius:2px;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* ========== CARDS ========== */
+.card{background:var(--surface);border-radius:16px;padding:14px;box-shadow:var(--shadow);}
+.card-dark{background:var(--dark2);box-shadow:var(--shadow-dark);}
+.card-lime{background:var(--lime);}
+.card-blue{background:var(--blue);}
+.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:var(--text-dim);margin-bottom:10px;}
+.lbl-dark{color:rgba(255,255,255,.45);}
+
+/* ========== HOME ========== */
+.home-grid{display:grid;grid-template-columns:1.1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:var(--gap);}
+.quick-actions{display:flex;flex-wrap:wrap;gap:8px;}
+.quick-btn{
+  flex:1;min-width:80px;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));
+  border:none;border-radius:var(--r-pill);
+  color:#fff;font-weight:700;font-size:12px;
+  padding:8px 12px;cursor:pointer;
+  transition:all 0.2s;font-family:'Plus Jakarta Sans',sans-serif;
+  text-align:center;
+}
+.quick-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(74,127,245,.3);}
+.quick-btn:active{transform:translateY(0);}
+
+/* Hero */
+#clockCard{grid-row:1/3;display:flex;flex-direction:column;justify-content:space-between;min-height:320px;padding:20px;}
+#clockBig{font-size:clamp(56px,7vw,84px);font-weight:800;color:var(--lime);line-height:1;letter-spacing:-2px;text-shadow:0 0 60px rgba(158,240,48,.2);}
+#clockDateLine{font-size:13px;font-weight:600;color:var(--text-dark-dim);margin-top:4px;text-transform:capitalize;}
+#clockGreeting{font-size:20px;font-weight:800;color:#fff;margin-top:8px;}
+#heroStats{display:flex;gap:8px;margin-top:auto;padding-top:24px;}
+.hero-stat{flex:1;background:rgba(255,255,255,.08);border-radius:10px;padding:8px 6px;text-align:center;}
+.hstat-n{font-size:22px;font-weight:800;color:var(--lime);}
+.hstat-l{font-size:9px;font-weight:700;color:var(--text-dark-dim);text-transform:uppercase;letter-spacing:.7px;margin-top:1px;}
+
+/* Weather */
+#weatherCard{padding:14px;}
+#weatherTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+#wTempBig{font-size:42px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-1px;}
+#wEmoji{font-size:38px;line-height:1;}
+#wDesc{font-size:13px;font-weight:600;color:var(--text-dim);margin-top:2px;}
+#wChips{display:flex;gap:7px;flex-wrap:wrap;}
+.wchip{padding:6px 12px;border-radius:var(--r-pill);background:var(--surface2);font-size:12px;font-weight:700;color:var(--text-dim);}
+/* Outfit panel */
+#wOutfit{margin-top:12px;padding-top:12px;border-top:1px solid #eef2ff;}
+#wOutfitLbl{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+#wOutfitHeadline{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;}
+#wOutfitItems{display:flex;gap:6px;flex-wrap:wrap;}
+.outfit-item{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:var(--r-pill);background:var(--surface2);font-size:12px;font-weight:700;color:var(--text);}
+.outfit-item .oi-emoji{font-size:16px;line-height:1;}
+.outfit-item.oi-warn{background:#fef3c7;color:#78350f;}
+.outfit-item.oi-cold{background:#dbeafe;color:#1e3a8a;}
+.outfit-item.oi-hot{background:#fee2e2;color:#7f1d1d;}
+/* Countdown card */
+#countdownCard{padding:14px;}
+#countdownList{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.cd-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--r-sm);}
+.cd-emoji{font-size:22px;line-height:1;}
+.cd-body{flex:1;min-width:0;}
+.cd-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cd-date{font-size:11px;font-weight:600;color:var(--text-dim);margin-top:1px;}
+.cd-days{font-size:20px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-.5px;text-align:right;min-width:58px;}
+.cd-days .cd-days-lbl{display:block;font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.8px;margin-top:2px;}
+.cd-row.cd-today{background:linear-gradient(135deg,#fef3c7,#fde68a);}
+.cd-row.cd-today .cd-days{color:#78350f;}
+.cd-row.cd-soon{background:#fef9c3;}
+.cd-del{background:none;border:none;color:var(--text-faint);font-size:19px;cursor:pointer;transition:color .15s;}
+.cd-del:hover{color:#ef4444;}
+/* Stats lime */
+#statsCard{padding:14px;}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.08);}
+.srow+.srow{margin-top:7px;}
+.srow-l{font-size:14px;font-weight:700;color:var(--dark);}
+.srow-n{font-size:22px;font-weight:800;color:var(--dark);}
+
+/* Events */
+#eventsCard{padding:14px;}
+.ev-row{display:flex;align-items:flex-start;gap:8px;padding:9px 0;border-bottom:1px solid #f2f4f8;}
+.ev-row:last-child{border-bottom:none;}
+.ev-pill{padding:5px 10px;border-radius:var(--r-pill);background:var(--lime);font-size:11px;font-weight:800;color:var(--dark);white-space:nowrap;flex-shrink:0;}
+.ev-pill.allday{background:var(--surface2);color:var(--text-dim);}
+.ev-name{font-size:14px;font-weight:600;color:var(--text);}
+
+/* Current lesson */
+#lessonCard{padding:14px;}
+
+/* ========== CALENDAR ========== */
+.cal-2col{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);}
+#calHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+#calMonth{font-size:19px;font-weight:800;text-transform:capitalize;color:#fff;}
+.cal-nav{background:rgba(255,255,255,.12);border:none;color:#fff;font-size:20px;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.cal-nav:hover{background:rgba(255,255,255,.22);}
+#calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-dow{text-align:center;font-size:10px;font-weight:800;color:var(--text-dark-dim);text-transform:uppercase;padding:6px 0;letter-spacing:.7px;}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:14px;font-weight:600;color:rgba(255,255,255,.7);cursor:pointer;transition:background .15s;position:relative;}
+.cal-day:hover{background:rgba(255,255,255,.1);}
+.cal-day.today{background:var(--lime);color:var(--dark);font-weight:800;}
+.cal-day.selected:not(.today){background:rgba(255,255,255,.18);color:#fff;}
+.cal-day.other-month{color:rgba(255,255,255,.2);}
+.cal-day.has-event::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--lime);}
+.cal-day.today.has-event::after{background:var(--dark);}
+#calEvCard{padding:14px;}
+#calEventTitle{font-size:16px;font-weight:800;margin-bottom:12px;}
+.cev-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #f2f4f8;}
+.cev-item:last-child{border-bottom:none;}
+.cev-dot{width:9px;height:9px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:4px;}
+.cev-time{font-size:12px;font-weight:700;color:var(--text-dim);min-width:54px;}
+.cev-name{font-size:14px;font-weight:600;}
+
+/* ========== TASKS ========== */
+#taskListSel{width:100%;background:var(--surface2);border:none;border-radius:var(--r-sm);padding:11px 14px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;outline:none;cursor:pointer;margin-bottom:12px;}
+.task-item{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surface2);border-radius:var(--r-sm);margin-bottom:7px;cursor:pointer;transition:background .15s;}
+.task-item:hover{background:#eaefff;}
+.task-item.done .task-title{text-decoration:line-through;color:var(--text-faint);}
+.task-check{width:22px;height:22px;border-radius:50%;border:2.5px solid var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff;font-size:12px;}
+.task-item.done .task-check{background:#22c55e;border-color:#22c55e;color:#fff;}
+.task-title{font-size:14px;font-weight:600;flex:1;}
+.task-due{font-size:12px;color:var(--text-dim);}
+
+/* ========== SHOPPING ========== */
+.shop-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.cat-chip{padding:7px 15px;border-radius:var(--r-pill);border:none;background:var(--surface2);color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
+.cat-chip.active{background:var(--dark);color:#fff;}
+.shop-item{display:flex;align-items:center;gap:9px;padding:11px 0;border-bottom:1px solid #f2f4f8;}
+.shop-item:last-child{border-bottom:none;}
+.shop-item.done .shop-name{text-decoration:line-through;color:var(--text-faint);}
+.shop-check{width:24px;height:24px;border-radius:8px;border:2px solid #dde6f4;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0;background:#fff;font-size:12px;}
+.shop-item.done .shop-check{background:#22c55e;border-color:#22c55e;color:#fff;}
+.shop-name{font-size:15px;font-weight:600;flex:1;}
+.shop-cat-badge{font-size:11px;padding:3px 9px;border-radius:var(--r-pill);background:var(--surface2);color:var(--text-dim);font-weight:700;}
+.shop-del{background:none;border:none;color:var(--text-faint);font-size:16px;cursor:pointer;padding:4px;transition:color .15s;}
+.shop-del:hover{color:#ef4444;}
+
+/* ========== CHORES ========== */
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.filter-chip{padding:7px 15px;border-radius:var(--r-pill);border:none;background:var(--surface2);color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
+.filter-chip.active{background:var(--dark);color:#fff;}
+.chore-item{display:flex;align-items:center;gap:9px;padding:11px 13px;background:var(--surface2);border-radius:var(--r-sm);margin-bottom:7px;}
+.chore-item.done .chore-name{text-decoration:line-through;color:var(--text-faint);}
+.chore-check{width:26px;height:26px;border-radius:8px;border:2px solid #dde6f4;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0;background:#fff;font-size:13px;}
+.chore-item.done .chore-check{background:#22c55e;border-color:#22c55e;color:#fff;}
+.chore-name{font-size:15px;font-weight:600;flex:1;}
+.chore-who{font-size:12px;padding:4px 11px;border-radius:var(--r-pill);font-weight:700;}
+.chore-who.child-1{background:rgba(139,92,246,.1);color:#7c3aed;}
+.chore-who.child-2{background:rgba(236,72,153,.1);color:#db2777;}
+.chore-who.wszyscy{background:rgba(34,197,94,.1);color:#16a34a;}
+.chore-del{background:none;border:none;color:var(--text-faint);font-size:16px;cursor:pointer;padding:4px;transition:color .15s;}
+.chore-del:hover{color:#ef4444;}
+
+/* ========== TIMETABLE ========== */
+#ttTabs{display:flex;gap:8px;margin-bottom:12px;}
+.tt-tab-btn{flex:1;padding:11px;border-radius:var(--r-sm);border:none;background:var(--surface2);color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+.tt-tab-btn.active{background:var(--dark);color:#fff;}
+#ttGrid{display:grid;grid-template-columns:70px repeat(5,1fr);gap:4px;}
+.tt-head{background:var(--surface2);padding:8px 5px;text-align:center;font-size:11px;font-weight:800;color:var(--text-dim);border-radius:10px;text-transform:uppercase;letter-spacing:.4px;}
+.tt-head.today-head{background:var(--dark);color:var(--lime);}
+.tt-time{background:var(--surface2);padding:7px 4px;border-radius:10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.tt-period{font-size:16px;font-weight:800;color:var(--blue);line-height:1;}
+.tt-slot{font-size:9px;color:var(--text-faint);font-weight:600;margin-top:2px;line-height:1.3;}
+.tt-cell{background:var(--surface2);padding:7px 5px;border-radius:10px;font-size:12px;font-weight:600;text-align:center;min-height:50px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;border:2px solid transparent;word-break:break-word;line-height:1.25;}
+.tt-cell:hover{background:#e8eeff;}
+.tt-cell.active-lesson{background:var(--lime);color:var(--dark);font-weight:700;border-color:transparent;}
+.tt-cell.today-col{background:#eaefff;}
+.tt-cell.empty-cell{color:var(--text-faint);}
+.tt-cell[contenteditable="true"]{outline:2px solid var(--blue);background:#fff;}
+
+/* ========== CAMERAS ========== */
+#cameraGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.cam-card{background:#0a0a0a;border-radius:var(--r-sm);overflow:hidden;position:relative;aspect-ratio:16/9;}
+.cam-card iframe,.cam-card img{width:100%;height:100%;border:none;object-fit:cover;}
+.cam-label{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:var(--r-pill);backdrop-filter:blur(4px);}
+.cam-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#555;font-size:13px;font-weight:600;flex-direction:column;gap:8px;}
+
+/* ========== DOODLE ========== */
+#doodleTools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+#doodleCanvas{border-radius:var(--r-sm);background:#fff;cursor:crosshair;touch-action:none;width:100%;display:block;}
+.tool-btn{padding:8px 13px;border-radius:var(--r-pill);border:none;background:var(--surface2);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
+.tool-btn:hover{background:#dde8f5;}
+.tool-btn.active-tool{background:var(--dark);color:#fff;}
+input[type="color"]{width:34px;height:34px;border:2px solid #dde6f4;border-radius:50%;cursor:pointer;background:none;padding:0;}
+input[type="range"]{width:76px;accent-color:var(--blue);}
+
+/* ========== GEMINI ASSISTANT ========== */
+.gem-msg{display:flex;width:100%;}
+.gem-msg-user{justify-content:flex-end;}
+.gem-msg-ai{justify-content:flex-start;}
+.gem-bubble{max-width:80%;padding:12px 16px;border-radius:20px;font-size:14px;font-weight:600;line-height:1.55;word-break:break-word;}
+.gem-bubble-user{background:var(--dark);color:#fff;border-bottom-right-radius:6px;}
+.gem-bubble-ai{background:var(--surface2);color:var(--dark);border-bottom-left-radius:6px;}
+.gem-bubble-ai.gem-thinking{color:var(--text-dim);font-style:italic;}
+@keyframes gemMicPulse{0%,100%{box-shadow:0 4px 16px rgba(66,133,244,.35);}50%{box-shadow:0 4px 28px rgba(234,67,53,.75);}}
+.gem-mic-active{animation:gemMicPulse 1s infinite;background:linear-gradient(135deg,#EA4335,#FBBC04) !important;}
+
+/* ========== SETTINGS ========== */
+.stitle{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--blue);margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid var(--surface2);}
+.flbl{display:block;font-size:13px;font-weight:700;color:var(--text-dim);margin-bottom:5px;}
+.finput{width:100%;background:var(--surface2);border:none;border-radius:var(--r-sm);padding:11px 13px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;outline:none;transition:box-shadow .15s;}
+.finput:focus{box-shadow:0 0 0 2px var(--blue);}
+.fgroup{margin-bottom:11px;}
+#gStatus{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:var(--r-sm);background:var(--surface2);margin-bottom:12px;}
+.g-dot{width:10px;height:10px;border-radius:50%;background:var(--text-faint);}
+.g-dot.ok{background:#22c55e;}.g-dot.err{background:#ef4444;}
+#gStatusText{font-size:14px;font-weight:700;}
+.bd-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f2f4f8;}
+.bd-row:last-child{border-bottom:none;}
+.bd-who{font-size:15px;font-weight:600;flex:1;}
+.bd-date-txt{font-size:13px;color:var(--text-dim);font-weight:600;min-width:86px;}
+.bd-del{background:none;border:none;color:var(--text-faint);font-size:19px;cursor:pointer;transition:color .15s;}
+.bd-del:hover{color:#ef4444;}
+
+/* ========== KIOSK TRACKER ========== */
+#kioskBadge{position:fixed;bottom:10px;right:10px;z-index:200;background:var(--dark);color:var(--lime);font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:800;padding:5px 11px;border-radius:var(--r-pill);opacity:.55;pointer-events:none;letter-spacing:.4px;}
+.kiosk-flash{position:fixed;inset:0;z-index:9998;background:rgba(255,255,255,.18);pointer-events:none;animation:kioskFlash .25s ease-out forwards;}
+@keyframes kioskFlash{from{opacity:1}to{opacity:0}}
+
+/* ========== NIGHT MODE (23:00 – 06:00) ========== */
+/* Nakładka przyciemniająca — przesuwa się nad panelami, pod topbarem */
+#nightOverlay{
+  position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 0%,rgba(4,8,28,.6) 0%,rgba(2,4,16,.84) 100%);
+  opacity:0;
+  transition:opacity 6s ease;
+}
+body.night-mode #nightOverlay{opacity:1;}
+
+/* Topbar i badge osobno — nad nakładką */
+body.night-mode #sideNav{
+  background:rgba(4,9,26,.82);
+  backdrop-filter:blur(24px);
+  transition:background 6s ease;
+}
+body.night-mode #sideNavTime{color:rgba(200,220,255,.6);transition:color 6s ease;}
+body.night-mode #sideNavLogo{color:rgba(180,210,255,.5);transition:color 6s ease;}
+body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
+
+/* ========== SHARED ========== */
+.add-form{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.add-input{flex:1;min-width:150px;background:var(--surface2);border:none;border-radius:var(--r-sm);padding:11px 13px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;outline:none;transition:box-shadow .15s;}
+.add-input:focus{box-shadow:0 0 0 2px var(--blue);}
+.add-select{background:var(--surface2);border:none;border-radius:var(--r-sm);padding:11px 11px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;outline:none;cursor:pointer;}
+.add-btn{background:var(--dark);border:none;border-radius:var(--r-sm);padding:11px 16px;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;cursor:pointer;transition:all .15s;line-height:1;}
+.add-btn:hover{background:var(--dark2);}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:9px 18px;border-radius:var(--r-sm);border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
+.btn-dark{background:var(--dark);color:#fff;}.btn-dark:hover{background:var(--dark2);}
+.btn-lime{background:var(--lime);color:var(--dark);}.btn-lime:hover{background:var(--lime2);}
+.btn-ghost{background:var(--surface2);color:var(--text);}.btn-ghost:hover{background:#dde8f5;}
+.btn-danger{background:rgba(239,68,68,.1);color:#ef4444;}.btn-danger:hover{background:rgba(239,68,68,.18);}
+.btn-sm{padding:7px 13px;font-size:12px;}
+.empty-state{text-align:center;padding:28px 14px;color:var(--text-faint);font-size:14px;font-weight:600;}
+.empty-state .ei{font-size:38px;margin-bottom:9px;display:block;}
+.flex-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.mt-8{margin-top:8px;}
+.mt-12{margin-top:12px;}
+.gap-card{margin-top:var(--gap);}
+</style>
+</head>
+<body>
+
+<!-- SETUP BANNER (shown on first boot when no private config has been imported) -->
+<div id="setupBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:200;background:linear-gradient(90deg,#1e293b,#334155);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.3);">
+  <span style="font-size:16px;">🔒</span>
+  <span style="flex:1;">Brak danych prywatnych — aplikacja działa w trybie demo. Zaimportuj plik konfiguracyjny w Ustawieniach.</span>
+  <button onclick="switchTab('settings');setTimeout(()=>{const c=document.getElementById('privateConfigCard');if(c)c.scrollIntoView({behavior:'smooth',block:'start'});},100);" style="background:#4a7ff5;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:13px;">Ustawienia</button>
+  <button onclick="document.getElementById('setupBanner').style.display='none';" aria-label="Zamknij" style="background:transparent;color:#fff;border:none;font-size:18px;cursor:pointer;padding:0 6px;opacity:.7;">×</button>
+</div>
+
+<!-- BIRTHDAY OVERLAY -->
+<!-- NIGHT MODE OVERLAY -->
+<div id="nightOverlay" aria-hidden="true"></div>
+
+<!-- KIOSK TRACKER: hidden camera elements -->
+<video id="kioskCam" autoplay muted playsinline style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px;" aria-hidden="true"></video>
+<canvas id="kioskCanvas" style="display:none;" aria-hidden="true"></canvas>
+<div id="kioskBadge">📸 0 · 👆 0</div>
+<div id="statusBar" style="position:fixed;top:0;left:var(--nav-w);right:0;height:24px;background:var(--dark2);color:var(--text-dark-dim);font-size:11px;font-weight:700;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.1);z-index:99;">
+  <span id="statusOnline" style="width:8px;height:8px;background:#10b981;border-radius:50%;"></span>
+  <span id="statusText">Online</span>
+  <span style="margin-left:auto;font-size:10px;opacity:0.6;" id="statusTime">--:--</span>
+</div>
+<div id="birthdayOverlay" role="dialog" aria-modal="true">
+  <div id="bdStars"></div><div id="bdConfettis"></div>
+  <div id="bdContent">
+    <span id="bdCake">🎂</span>
+    <div id="bdTitle">Wszystkiego<br>Najlepszego!</div>
+    <div id="bdName"></div>
+    <div id="bdSto">🎉 Sto lat! 🎉</div>
+    <div id="bdProgressWrap"><div id="bdProgressBar"></div></div>
+    <button id="bdCloseBtn" onclick="closeBirthday()">Zamknij</button>
+  </div>
+</div>
+
+<!-- LEFT SIDEBAR NAV -->
+<div id="sideNav">
+  <div id="sideNavLogo">EOS</div>
+  <div id="sideNavTime">--:--</div>
+  <button class="nav-btn active" onclick="switchTab('home')" data-tab="home"><span class="nav-icon">🏠</span>Dom</button>
+  <button class="nav-btn" onclick="switchTab('calendar')" data-tab="calendar"><span class="nav-icon">📅</span>Kalendarz</button>
+  <button class="nav-btn" onclick="switchTab('tasks')" data-tab="tasks"><span class="nav-icon">✅</span>Zadania</button>
+  <button class="nav-btn" onclick="switchTab('shopping')" data-tab="shopping"><span class="nav-icon">🛒</span>Zakupy</button>
+  <button class="nav-btn" onclick="switchTab('chores')" data-tab="chores"><span class="nav-icon">🧹</span>Obowiązki</button>
+  <button class="nav-btn" onclick="switchTab('timetable')" data-tab="timetable"><span class="nav-icon">📚</span>Lekcje</button>
+  <button class="nav-btn" onclick="switchTab('cameras')" data-tab="cameras"><span class="nav-icon">📷</span>Kamery</button>
+  <button class="nav-btn" onclick="switchTab('doodle')" data-tab="doodle"><span class="nav-icon">🎨</span>Rysuj</button>
+  <button class="nav-btn" onclick="switchTab('gemini');geminiToggleMic();" data-tab="gemini" style="padding:0;"><span class="nav-icon" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;"><svg viewBox="0 0 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gng" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 2C14 2 14 13 2 14C14 14 14 26 14 26C14 26 14 15 26 14C14 14 14 2 14 2Z" fill="url(#gng)"/></svg></span>Gemini</button>
+  <button class="nav-btn" onclick="switchTab('settings')" data-tab="settings"><span class="nav-icon">⚙️</span>Ustawienia</button>
+  <button class="nav-btn" id="navRefreshBtn" onclick="manualGitHubUpdate()" title="Pobierz nową wersję z GitHub" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.1);"><span class="nav-icon">🔄</span><span style="font-size:11px;">Aktualizuj</span></button>
+  <div id="versionDisplay" style="font-size:10px;color:rgba(255,255,255,.4);padding:8px 4px;text-align:center;border-top:1px solid rgba(255,255,255,.1);width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
+</div>
+
+<!-- PANELS -->
+<div id="panels">
+
+  <!-- HOME -->
+  <div id="tab-home" class="tab-panel active">
+    <div class="home-grid">
+      <div class="card card-dark" id="clockCard">
+        <div class="lbl lbl-dark">Czas lokalny · Warszawa</div>
+        <div id="clockBig">00:00</div>
+        <div id="clockDateLine">—</div>
+        <div id="clockGreeting">Dzień dobry!</div>
+        <div id="heroStats">
+          <div class="hero-stat"><div class="hstat-n" id="statShop">0</div><div class="hstat-l">Zakupy</div></div>
+          <div class="hero-stat"><div class="hstat-n" id="statChores">0</div><div class="hstat-l">Obowiązki</div></div>
+          <div class="hero-stat"><div class="hstat-n" id="statTasks">0</div><div class="hstat-l">Zadania</div></div>
+        </div>
+      </div>
+      <div class="card" id="weatherCard">
+        <div class="lbl">Pogoda · Warszawa</div>
+        <div id="weatherTop">
+          <div><div id="wTempBig">—°C</div><div id="wDesc">Ładowanie…</div></div>
+          <div id="wEmoji">🌡️</div>
+        </div>
+        <div id="wChips">
+          <span class="wchip">💧 <span id="wHumidity">—</span>%</span>
+          <span class="wchip">💨 <span id="wWind">—</span> km/h</span>
+          <span class="wchip">Odcz. <span id="wApparent">—</span>°C</span>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eef2ff;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">7-dniowa prognoza</div>
+          <div id="weatherForecast" style="display:flex;gap:4px;overflow-x:auto;">Ładowanie…</div>
+        </div>
+        <div id="wOutfit">
+          <div id="wOutfitLbl">👕 Co założyć</div>
+          <div id="wOutfitHeadline">Ładowanie…</div>
+          <div id="wOutfitItems"></div>
+        </div>
+      </div>
+      <div class="card card-lime" id="statsCard">
+        <div class="lbl" style="color:rgba(0,0,0,.45);">Stan domu</div>
+        <div class="srow"><span class="srow-l">🛒 Do kupienia</span><span class="srow-n" id="statShop2">0</span></div>
+        <div class="srow"><span class="srow-l">🧹 Obowiązki</span><span class="srow-n" id="statChores2">0</span></div>
+        <div class="srow"><span class="srow-l">✅ Zadania</span><span class="srow-n" id="statTasks2">0</span></div>
+      </div>
+      <div class="card" id="eventsCard">
+        <div class="lbl">Dzisiaj w kalendarzu</div>
+        <div id="homeEvents"><div class="empty-state"><span class="ei">📅</span>Brak lub niezalogowano</div></div>
+      </div>
+      <div class="card" id="countdownCard">
+        <div class="lbl">📅 Odliczanie</div>
+        <div id="countdownList"><div class="empty-state" style="padding:14px;"><span class="ei">📅</span>Brak dat</div></div>
+      </div>
+      <div class="card card-dark" id="lessonCard">
+        <div class="lbl lbl-dark" id="lessonCardLabel">Aktualna lekcja</div>
+        <div id="currentLessonInfo"></div>
+      </div>
+      <div class="card" id="actionsCard" style="grid-column:1/-1;">
+        <div class="lbl">⚡ Szybkie akcje</div>
+        <div class="quick-actions">
+          <button class="quick-btn" onclick="switchTab('shopping');document.getElementById('shopInput').focus();">➕ Dodaj zakupy</button>
+          <button class="quick-btn" onclick="switchTab('chores');document.getElementById('choreInput').focus();">➕ Nowy obowiązek</button>
+          <button class="quick-btn" onclick="switchTab('tasks');document.getElementById('newTaskInput').focus();">➕ Nowe zadanie</button>
+          <button class="quick-btn" onclick="switchTab('calendar');">📅 Kalendarz</button>
+          <button class="quick-btn" onclick="if(isSignedIn)fetchCalEvents();else googleSignIn();">🔄 Synchronizuj</button>
+          <button class="quick-btn" onclick="startVoiceCommand();">🎤 Głos</button>
+          <button class="quick-btn" onclick="switchTab('settings');document.getElementById('kioskEmail').focus();">⚙️ Ustawienia</button>
+        </div>
+      </div>
+      <div class="card" id="jokeCard" style="grid-column:1/-1;">
+        <div class="lbl">😄 Żart dnia</div>
+        <div id="jokeDayText" style="font-size:15px;font-weight:700;color:var(--text);line-height:1.55;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div id="tab-calendar" class="tab-panel">
+    <div class="cal-2col">
+      <div class="card card-dark" style="padding:14px;">
+        <div id="calHeader">
+          <button class="cal-nav" onclick="calNav(-1)">‹</button>
+          <span id="calMonth"></span>
+          <button class="cal-nav" onclick="calNav(1)">›</button>
+        </div>
+        <div id="calGrid"></div>
+      </div>
+      <div class="card" id="calEvCard">
+        <div id="calEventTitle" style="font-size:16px;font-weight:800;margin-bottom:12px;">Wybierz dzień</div>
+        <div id="calEventList"><div class="empty-state"><span class="ei">📅</span>Brak wydarzeń</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS -->
+  <div id="tab-tasks" class="tab-panel">
+    <div class="card">
+      <div class="lbl">Google Zadania</div>
+      <select id="taskListSel" onchange="loadTasks()"><option value="">— wybierz listę —</option></select>
+      <div id="taskListItems"><div class="empty-state"><span class="ei">✅</span>Zaloguj przez Google, aby zobaczyć zadania</div></div>
+    </div>
+    <div class="card gap-card">
+      <div class="add-form">
+        <input class="add-input" id="newTaskInput" placeholder="Nowe zadanie…" onkeydown="if(event.key==='Enter')addTask()">
+        <button class="add-btn" onclick="addTask()">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOPPING -->
+  <div id="tab-shopping" class="tab-panel">
+    <div class="card">
+      <div class="shop-cats" id="shopCats">
+        <button class="cat-chip active" onclick="setShopFilter('Wszystkie')" data-cat="Wszystkie">Wszystkie</button>
+        <button class="cat-chip" onclick="setShopFilter('Nabiał')" data-cat="Nabiał">🥛 Nabiał</button>
+        <button class="cat-chip" onclick="setShopFilter('Warzywa')" data-cat="Warzywa">🥦 Warzywa</button>
+        <button class="cat-chip" onclick="setShopFilter('Mięso')" data-cat="Mięso">🥩 Mięso</button>
+        <button class="cat-chip" onclick="setShopFilter('Piekarnia')" data-cat="Piekarnia">🍞 Piekarnia</button>
+        <button class="cat-chip" onclick="setShopFilter('Chemia')" data-cat="Chemia">🧴 Chemia</button>
+        <button class="cat-chip" onclick="setShopFilter('Inne')" data-cat="Inne">📦 Inne</button>
+      </div>
+      <div class="add-form" style="margin-bottom:16px;">
+        <input class="add-input" id="shopInput" placeholder="Dodaj produkt…" onkeydown="if(event.key==='Enter')addShopItem()">
+        <select class="add-select" id="shopCatSel">
+          <option>Nabiał</option><option>Warzywa</option><option>Mięso</option>
+          <option>Piekarnia</option><option>Chemia</option><option>Inne</option>
+        </select>
+        <button class="add-btn" onclick="addShopItem()">+</button>
+      </div>
+      <div id="shopList"></div>
+      <div class="flex-row mt-12">
+        <button class="btn btn-ghost btn-sm" onclick="clearDoneShop()">🗑️ Usuń kupione</button>
+        <button class="btn btn-danger btn-sm" onclick="clearAllShop()">Wyczyść wszystko</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHORES -->
+  <div id="tab-chores" class="tab-panel">
+    <div class="card">
+      <div class="filter-row" id="choreFilter">
+        <button class="filter-chip active" onclick="setChoreFilter('Wszyscy')" data-who="Wszyscy">👨‍👩‍👧‍👧 Wszyscy</button>
+        <button class="filter-chip" data-child="c1" data-who="Dziecko 1" onclick="setChoreFilter('Dziecko 1')">🟣 Dziecko 1</button>
+        <button class="filter-chip" data-child="c2" data-who="Dziecko 2" onclick="setChoreFilter('Dziecko 2')">🩷 Dziecko 2</button>
+      </div>
+      <div class="add-form" style="margin-bottom:14px;">
+        <input class="add-input" id="choreInput" placeholder="Nowy obowiązek…" onkeydown="if(event.key==='Enter')addChore()">
+        <select class="add-select" id="choreWhoSel"><option>Dziecko 1</option><option>Dziecko 2</option><option>Wszyscy</option></select>
+        <button class="add-btn" onclick="addChore()">+</button>
+      </div>
+      <div id="choreList"></div>
+      <div class="mt-12">
+        <button class="btn btn-ghost btn-sm" onclick="resetChores()">🔄 Resetuj tygodniowo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMETABLE -->
+  <div id="tab-timetable" class="tab-panel">
+    <div class="card">
+      <div id="ttTabs">
+        <button class="tt-tab-btn active" onclick="setTTStudent('c1')">📗 Dziecko 1</button>
+        <button class="tt-tab-btn" onclick="setTTStudent('c2')">📘 Dziecko 2</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;font-weight:600;">Kliknij komórkę, aby edytować · Enter / klik poza = zapisz</div>
+      <div id="ttGrid"></div>
+    </div>
+  </div>
+
+  <!-- CAMERAS -->
+  <div id="tab-cameras" class="tab-panel">
+    <div class="card">
+      <div class="lbl">Kamery Unifi Protect</div>
+      <div id="cameraGrid"></div>
+    </div>
+  </div>
+
+  <!-- DOODLE -->
+  <div id="tab-doodle" class="tab-panel">
+    <div class="card">
+      <div id="doodleTools">
+        <button class="tool-btn active-tool" id="toolPen" onclick="setTool('pen')">✏️ Rysuj</button>
+        <button class="tool-btn" id="toolEraser" onclick="setTool('eraser')">🧹 Gumka</button>
+        <input type="color" id="brushColor" value="#1a1a2e" title="Kolor" onchange="updateTool()">
+        <input type="range" id="brushSize" min="2" max="40" value="6" title="Rozmiar" onchange="updateTool()">
+        <button class="tool-btn" onclick="clearDoodle()">🗑️ Wyczyść</button>
+        <button class="tool-btn" onclick="saveDoodle()">💾 Zapisz</button>
+      </div>
+      <canvas id="doodleCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- GEMINI ASSISTANT -->
+  <div id="tab-gemini" class="tab-panel">
+    <div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 28px);padding:16px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-shrink:0;">
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4285F4,#9B72CB,#EA4335);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg viewBox="0 0 28 28" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2C14 2 14 13 2 14C14 14 14 26 14 26C14 26 14 15 26 14C14 14 14 2 14 2Z" fill="white"/></svg>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--dark);">Asystent Gemini</div>
+          <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Pomocny asystent dla dzieci ✨</div>
+        </div>
+        <div id="geminiStatus" style="margin-left:auto;font-size:11px;font-weight:700;color:var(--text-faint);"></div>
+      </div>
+      <div id="geminiMessages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(100,140,200,.2) transparent;margin-bottom:12px;">
+        <div class="gem-msg gem-msg-ai"><div class="gem-bubble gem-bubble-ai">Cześć! 👋 Jestem Gemini – Twoim pomocnym asystentem. Możesz mi zadać pytanie głosem lub wpisując tekst. W czym mogę pomóc?</div></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">
+        <button id="geminiMicBtn" onclick="geminiToggleMic()" title="Kliknij aby nagrać polecenie" style="width:52px;height:52px;border-radius:50%;border:none;background:linear-gradient(135deg,#4285F4,#9B72CB);color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px rgba(66,133,244,.35);transition:all .2s;active:{background:linear-gradient(135deg,#EA4335,#E53935)}">🎤</button>
+        <input id="geminiInput" type="text" placeholder="Wpisz pytanie…" style="flex:1;height:52px;border-radius:26px;border:2px solid var(--surface2);background:var(--surface2);padding:0 18px;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:600;color:var(--dark);outline:none;transition:border-color .2s;" onfocus="this.style.borderColor='#4285F4'" onblur="this.style.borderColor='var(--surface2)'" onkeydown="if(event.key==='Enter')geminiSend()">
+        <button onclick="geminiSend()" title="Wyślij" style="width:52px;height:52px;border-radius:50%;border:none;background:var(--dark);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s;" onmouseover="this.style.background='#4285F4'" onmouseout="this.style.background='var(--dark)'">&#10148;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" class="tab-panel">
+    <div class="card" id="privateConfigCard">
+      <div class="stitle">🔒 Dane prywatne (imiona, klasy, plany lekcji)</div>
+      <p style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:12px;">Aplikacja jest hostowana publicznie na GitHub Pages, więc dane osobowe (imiona, plany lekcji, urodziny, email, Client ID) nie są w kodzie źródłowym. Zaimportuj je z pliku JSON — zostaną zapisane tylko na tym urządzeniu.</p>
+      <div id="privateConfigStatus" style="background:var(--surface2);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;font-weight:700;color:var(--text-dim);margin-bottom:12px;"></div>
+      <div class="fgroup">
+        <label class="flbl">Wklej JSON</label>
+        <textarea id="privateConfigPaste" class="finput" rows="6" placeholder='{"schemaVersion":1,"children":[…],"timetables":{…}, …}' style="font-family:monospace;font-size:12px;resize:vertical;min-height:100px;"></textarea>
+      </div>
+      <div class="flex-row" style="flex-wrap:wrap;gap:8px;">
+        <button class="btn btn-dark btn-sm" onclick="doImportPrivateConfigPaste()">📥 Importuj z pola</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('privateConfigFile').click()">📁 Importuj z pliku</button>
+        <button class="btn btn-ghost btn-sm" onclick="doDownloadPrivateConfigTemplate()">📄 Pobierz szablon</button>
+        <button class="btn btn-ghost btn-sm" onclick="doExportPrivateConfig()">📤 Eksportuj bieżący config</button>
+        <button class="btn btn-danger btn-sm" onclick="doClearPrivateConfig()">🗑️ Usuń config</button>
+      </div>
+      <input type="file" id="privateConfigFile" accept=".json,application/json" style="display:none;" onchange="doImportPrivateConfigFile(this)">
+    </div>
+    <div class="card gap-card">
+      <div class="stitle">Google (Kalendarz &amp; Zadania)</div>
+      <div id="gStatus"><div class="g-dot" id="gDot"></div><span id="gStatusText">Niezalogowany</span></div>
+      <div class="fgroup"><label class="flbl">Client ID (Google Cloud Console)</label><input class="finput" id="gClientId" placeholder="xxxxxxxxx.apps.googleusercontent.com" oninput="saveSettings()"></div>
+      <div class="flex-row"><button class="btn btn-dark" onclick="googleSignIn()">🔑 Zaloguj Google</button><button class="btn btn-ghost" onclick="googleSignOut()">Wyloguj</button></div>
+    </div>
+    <div class="card gap-card">
+    </div>
+    <div class="card gap-card">
+      <div class="stitle" style="display:flex;align-items:center;gap:7px;"><svg viewBox="0 0 28 28" width="14" height="14" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gng2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 2C14 2 14 13 2 14C14 14 14 26 14 26C14 26 14 15 26 14C14 14 14 2 14 2Z" fill="url(#gng2)"/></svg>Asystent Gemini</div>
+      <p style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:12px;">Klucz API z <span style="color:var(--blue);">aistudio.google.com</span> → Get API Key (darmowy).</p>
+      <div class="fgroup"><label class="flbl">Klucz API Gemini</label><input class="finput" id="geminiApiKey" type="password" placeholder="AIza…" oninput="saveSettings()"></div>
+    </div>
+    <div class="card gap-card">
+      <div class="stitle">Kamery Unifi Protect</div>
+      <div id="camInputs"></div>
+      <button class="btn btn-ghost btn-sm mt-8" onclick="addCamSlot()">+ Dodaj kamerę</button>
+    </div>
+    <div class="card gap-card">
+      <div class="stitle">📅 Ważne daty (odliczanie)</div>
+      <p style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:12px;">Daty wyświetlane na głównym ekranie z odliczaniem dni. Urodziny dodajesz poniżej — pojawią się automatycznie.</p>
+      <div id="idList"></div>
+      <div class="add-form mt-12">
+        <input class="add-input" id="idNameInput" placeholder="Nazwa wydarzenia…">
+        <input class="add-input" id="idEmojiInput" placeholder="🎉" style="max-width:70px;text-align:center;">
+        <select class="add-select" id="idDayInput"><option value="">Dzień</option></select>
+        <select class="add-select" id="idMonthInput">
+          <option value="">Miesiąc</option>
+          <option value="1">Styczeń</option><option value="2">Luty</option><option value="3">Marzec</option>
+          <option value="4">Kwiecień</option><option value="5">Maj</option><option value="6">Czerwiec</option>
+          <option value="7">Lipiec</option><option value="8">Sierpień</option><option value="9">Wrzesień</option>
+          <option value="10">Październik</option><option value="11">Listopad</option><option value="12">Grudzień</option>
+        </select>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text-dim);padding:0 4px;"><input type="checkbox" id="idRecurringInput" checked> co roku</label>
+        <button class="add-btn" onclick="addImportantDate()">+</button>
+      </div>
+    </div>
+    <div class="card gap-card">
+      <div class="stitle">🎂 Urodziny</div>
+      <p style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:12px;">Duży ekran z życzeniami pojawi się automatycznie w dniu urodzin przez 10 sekund.</p>
+      <div id="bdList"></div>
+      <div class="add-form mt-12">
+        <input class="add-input" id="bdNameInput" placeholder="Imię…">
+        <select class="add-select" id="bdDayInput"><option value="">Dzień</option></select>
+        <select class="add-select" id="bdMonthInput">
+          <option value="">Miesiąc</option>
+          <option value="1">Styczeń</option><option value="2">Luty</option><option value="3">Marzec</option>
+          <option value="4">Kwiecień</option><option value="5">Maj</option><option value="6">Czerwiec</option>
+          <option value="7">Lipiec</option><option value="8">Sierpień</option><option value="9">Wrzesień</option>
+          <option value="10">Październik</option><option value="11">Listopad</option><option value="12">Grudzień</option>
+        </select>
+        <button class="add-btn" onclick="addBirthday()">+</button>
+      </div>
+    </div>
+    <div class="card gap-card">
+      <div class="stitle">📊 Kiosk Tracker</div>
+      <p style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:12px;">Zlicza dotknięcia, robi zdjęcia (max 1 na 2 min) i wysyła dzienne podsumowanie emailem o 7:00.</p>
+      <div class="fgroup"><label class="flbl">Email odbiorcy podsumowania</label><input class="finput" id="kioskEmail" placeholder="np. rodzina@gmail.com" oninput="saveSettings()"></div>
+      <div id="kioskStats" style="background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;font-weight:700;color:var(--text-dim);margin-bottom:12px;">Ładowanie statystyk…</div>
+      <div class="flex-row">
+        <button class="btn btn-ghost btn-sm" onclick="downloadPhotosZip('today')">📥 ZIP zdjęcia dziś</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadPhotosZip('yesterday')">📥 ZIP zdjęcia wczoraj</button>
+        <button class="btn btn-dark btn-sm" onclick="sendDailySummaryEmail(true)">📧 Wyślij email teraz</button>
+      </div>
+    </div>
+    <div class="card gap-card">
+      <div class="stitle">Dane aplikacji</div>
+      <div id="debugInfo" style="background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;font-family:monospace;margin-bottom:12px;max-height:180px;overflow-y:auto;line-height:1.6;color:var(--text-dim);">Ładowanie…</div>
+      <div class="flex-row">
+        <button class="btn btn-ghost btn-sm" onclick="updateDebugPanel()">🔄 Odśwież info</button>
+        <button class="btn btn-ghost btn-sm" onclick="logDebugInfo()">📋 Drukuj do konsoli</button>
+        <button class="btn btn-danger btn-sm" onclick="if(confirm('Reset wszystkich danych?'))resetAll()">⚠️ Resetuj dane</button>
+        <button class="btn btn-ghost btn-sm" onclick="previewBirthday()">🎂 Testuj overlay urodzin</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /panels -->
+
+<script>
+'use strict';
+
+/* === SECURITY === */
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function safeLoad(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}}
+function safeSave(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+function isSafeUrl(url){if(!url||typeof url!=='string')return false;try{const u=new URL(url);return['http:','https:','rtsp:'].includes(u.protocol);}catch{return false;}}
+
+/* === PRIVATE CONFIG ===
+ * Private data (names, classes, timetables, birthdays, emails, client IDs) is
+ * never hardcoded in the shipped source. It lives in localStorage['privateConfig'],
+ * imported once via Settings → Dane prywatne. When no config is imported the app
+ * falls back to generic placeholders so it's safe to host on public GitHub Pages.
+ */
+const PRIVATE_CONFIG_KEY='privateConfig';
+const PRIVATE_CONFIG_SCHEMA=1;
+function getPrivateConfigDefaults(){
+  return{
+    schemaVersion:PRIVATE_CONFIG_SCHEMA,
+    children:[
+      {id:'c1',name:'Dziecko 1',class:'',yearBorn:0,color:'#7c3aed',colorBg:'rgba(139,92,246,.1)'},
+      {id:'c2',name:'Dziecko 2',class:'',yearBorn:0,color:'#db2777',colorBg:'rgba(236,72,153,.1)'}
+    ],
+    timetables:{c1:[],c2:[]},
+    birthdays:[],
+    importantDates:[],
+    googleClientId:'',
+    kioskSummaryRecipient:''
+  };
+}
+function getPrivateConfig(){
+  const raw=safeLoad(PRIVATE_CONFIG_KEY,null);
+  if(!raw)return getPrivateConfigDefaults();
+  const d=getPrivateConfigDefaults();
+  return{
+    schemaVersion:raw.schemaVersion||PRIVATE_CONFIG_SCHEMA,
+    children:Array.isArray(raw.children)&&raw.children.length>=2
+      ?raw.children.slice(0,2).map((c,i)=>({...d.children[i],...c}))
+      :d.children,
+    timetables:{
+      c1:Array.isArray(raw.timetables?.c1)?raw.timetables.c1:[],
+      c2:Array.isArray(raw.timetables?.c2)?raw.timetables.c2:[]
+    },
+    birthdays:Array.isArray(raw.birthdays)?raw.birthdays:[],
+    importantDates:Array.isArray(raw.importantDates)?raw.importantDates:[],
+    googleClientId:typeof raw.googleClientId==='string'?raw.googleClientId:'',
+    kioskSummaryRecipient:typeof raw.kioskSummaryRecipient==='string'?raw.kioskSummaryRecipient:''
+  };
+}
+function hasPrivateConfig(){
+  return localStorage.getItem(PRIVATE_CONFIG_KEY)!==null;
+}
+function savePrivateConfig(obj){
+  safeSave(PRIVATE_CONFIG_KEY,obj);
+  try{applyPrivateConfig();}catch(e){console.warn('applyPrivateConfig failed:',e);}
+}
+function validatePrivateConfig(obj){
+  if(!obj||typeof obj!=='object')return'Config musi być obiektem JSON';
+  if(!Array.isArray(obj.children)||obj.children.length!==2)return'children musi zawierać dokładnie 2 elementy';
+  for(let i=0;i<2;i++){
+    const c=obj.children[i];
+    if(!c||typeof c.name!=='string'||!c.name.trim())return'children['+i+'].name jest wymagane';
+  }
+  if(obj.timetables&&typeof obj.timetables!=='object')return'timetables musi być obiektem';
+  if(obj.birthdays&&!Array.isArray(obj.birthdays))return'birthdays musi być tablicą';
+  if(obj.importantDates&&!Array.isArray(obj.importantDates))return'importantDates musi być tablicą';
+  return null;
+}
+function importPrivateConfigFromJSON(str){
+  let parsed;
+  try{parsed=JSON.parse(str);}catch(e){return{ok:false,error:'Nieprawidłowy JSON: '+e.message};}
+  const err=validatePrivateConfig(parsed);
+  if(err)return{ok:false,error:err};
+  savePrivateConfig(parsed);
+  // Write timetable cells into tt_c1_*/tt_c2_* keys so renderTimetable() finds them
+  if(parsed.timetables){
+    ['c1','c2'].forEach(cid=>{
+      const t=parsed.timetables[cid];
+      if(!Array.isArray(t))return;
+      for(let di=0;di<5;di++){
+        const row=t[di]||[];
+        for(let pi=0;pi<11;pi++){
+          const v=row[pi]||'';
+          if(v)safeSave(`tt_${cid}_${di}_${pi}`,v);
+          else localStorage.removeItem(`tt_${cid}_${di}_${pi}`);
+        }
+      }
+    });
+  }
+  return{ok:true};
+}
+function exportPrivateConfig(){
+  const cfg=getPrivateConfig();
+  // Rebuild timetables from tt_c1_*/tt_c2_* keys so edits made via the timetable UI are exported
+  ['c1','c2'].forEach(cid=>{
+    const tt=[];
+    for(let di=0;di<5;di++){
+      const row=[];
+      for(let pi=0;pi<11;pi++){row.push(safeLoad(`tt_${cid}_${di}_${pi}`,''));}
+      tt.push(row);
+    }
+    cfg.timetables[cid]=tt;
+  });
+  return JSON.stringify(cfg,null,2);
+}
+function getPrivateConfigTemplate(){
+  return JSON.stringify({
+    schemaVersion:1,
+    children:[
+      {id:'c1',name:'ImięDziecka1',class:'1a',yearBorn:2010,color:'#7c3aed',colorBg:'rgba(139,92,246,.1)'},
+      {id:'c2',name:'ImięDziecka2',class:'1a',yearBorn:2010,color:'#db2777',colorBg:'rgba(236,72,153,.1)'}
+    ],
+    timetables:{
+      c1:[
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','','']
+      ],
+      c2:[
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','',''],
+        ['','','','','','','','','','','']
+      ]
+    },
+    birthdays:[
+      {name:'ImięDziecka1',day:1,month:1,yearBorn:2010},
+      {name:'ImięDziecka2',day:1,month:1,yearBorn:2010}
+    ],
+    importantDates:[
+      {name:'Wigilia',day:24,month:12,emoji:'🎄',recurring:true},
+      {name:'Nowy Rok',day:1,month:1,emoji:'🎆',recurring:true},
+      {name:'Koniec roku szkolnego',day:27,month:6,emoji:'🎒',recurring:true},
+      {name:'Początek roku szkolnego',day:1,month:9,emoji:'📚',recurring:true}
+    ],
+    googleClientId:'xxxxxxxxx-xxxxx.apps.googleusercontent.com',
+    kioskSummaryRecipient:'rodzina@example.com'
+  },null,2);
+}
+// Re-apply config-driven UI (labels, chore filter buttons, colors, children names).
+// Called on load and after import. Safe to call multiple times.
+function applyPrivateConfig(){
+  const cfg=getPrivateConfig();
+  const kids=cfg.children;
+
+  // Chore filter chip labels + data-who
+  const chip1=document.querySelector('.filter-chip[data-child="c1"]');
+  const chip2=document.querySelector('.filter-chip[data-child="c2"]');
+  if(chip1){chip1.textContent='🟣 '+kids[0].name;chip1.dataset.who=kids[0].name;chip1.setAttribute('onclick',`setChoreFilter('${kids[0].name.replace(/'/g,"\\'")}')`);}
+  if(chip2){chip2.textContent='🩷 '+kids[1].name;chip2.dataset.who=kids[1].name;chip2.setAttribute('onclick',`setChoreFilter('${kids[1].name.replace(/'/g,"\\'")}')`);}
+
+  // Chore "who" select
+  const sel=document.getElementById('choreWhoSel');
+  if(sel){
+    sel.innerHTML=`<option>${esc(kids[0].name)}</option><option>${esc(kids[1].name)}</option><option>Wszyscy</option>`;
+  }
+
+  // Timetable tab buttons
+  const ttBtns=document.querySelectorAll('.tt-tab-btn');
+  if(ttBtns.length>=2){
+    const cls1=kids[0].class?` (${kids[0].class})`:'';
+    const cls2=kids[1].class?` (${kids[1].class})`:'';
+    ttBtns[0].textContent='📗 '+kids[0].name+cls1;
+    ttBtns[0].setAttribute('onclick',"setTTStudent('c1')");
+    ttBtns[1].textContent='📘 '+kids[1].name+cls2;
+    ttBtns[1].setAttribute('onclick',"setTTStudent('c2')");
+  }
+
+  // Dynamic CSS variables for child colors (used by chore pills)
+  const styleEl=document.getElementById('childColorStyles')||(()=>{
+    const s=document.createElement('style');s.id='childColorStyles';document.head.appendChild(s);return s;
+  })();
+  const n1=String(kids[0].name||'').toLowerCase().replace(/[^a-z0-9]/g,'')||'child1';
+  const n2=String(kids[1].name||'').toLowerCase().replace(/[^a-z0-9]/g,'')||'child2';
+  styleEl.textContent=
+    `.chore-who.child-1,.chore-who.${n1}{background:${kids[0].colorBg||'rgba(139,92,246,.1)'};color:${kids[0].color||'#7c3aed'};}`+
+    `.chore-who.child-2,.chore-who.${n2}{background:${kids[1].colorBg||'rgba(236,72,153,.1)'};color:${kids[1].color||'#db2777'};}`;
+
+  // Setup banner visibility
+  const banner=document.getElementById('setupBanner');
+  if(banner)banner.style.display=hasPrivateConfig()?'none':'';
+}
+// Helpers used across the app to read config-driven identity
+function getChildren(){return getPrivateConfig().children;}
+function getChildById(id){return getChildren().find(c=>c.id===id)||null;}
+function getChildByName(name){return getChildren().find(c=>c.name===name)||null;}
+function getChildIdByName(name){const c=getChildByName(name);return c?c.id:null;}
+
+// UI handlers for the Dane prywatne card in Settings
+function renderPrivateConfigStatus(){
+  const el=document.getElementById('privateConfigStatus');
+  if(!el)return;
+  if(!hasPrivateConfig()){
+    el.innerHTML='⚠️ <span style="color:#ef4444;">Brak konfiguracji</span> — aplikacja działa w trybie demo.';
+    return;
+  }
+  const cfg=getPrivateConfig();
+  const k1=esc(cfg.children[0]?.name||'?');
+  const k2=esc(cfg.children[1]?.name||'?');
+  const nBD=(cfg.birthdays||[]).length;
+  const nID=(cfg.importantDates||[]).length;
+  const hasCID=cfg.googleClientId?'✓':'—';
+  const hasEmail=cfg.kioskSummaryRecipient?'✓':'—';
+  el.innerHTML=`✅ <span style="color:#10b981;">Config aktywny</span> · Dzieci: <strong>${k1}</strong> &amp; <strong>${k2}</strong> · Urodziny: <strong>${nBD}</strong> · Ważne daty: <strong>${nID}</strong> · Client ID: <strong>${hasCID}</strong> · Email: <strong>${hasEmail}</strong>`;
+}
+function doImportPrivateConfigPaste(){
+  const ta=document.getElementById('privateConfigPaste');
+  const text=(ta?.value||'').trim();
+  if(!text){showToast('❌ Wklej JSON najpierw','error');return;}
+  const res=importPrivateConfigFromJSON(text);
+  if(!res.ok){showToast('❌ '+res.error,'error');return;}
+  showToast('✅ Config zaimportowany — odświeżanie...','success');
+  if(ta)ta.value='';
+  setTimeout(()=>location.reload(),800);
+}
+function doImportPrivateConfigFile(inputEl){
+  const f=inputEl?.files?.[0];
+  if(!f)return;
+  if(f.size>500000){showToast('❌ Plik zbyt duży (max 500 kB)','error');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const res=importPrivateConfigFromJSON(String(e.target.result||''));
+    if(!res.ok){showToast('❌ '+res.error,'error');return;}
+    showToast('✅ Config zaimportowany — odświeżanie...','success');
+    setTimeout(()=>location.reload(),800);
+  };
+  reader.onerror=()=>showToast('❌ Błąd odczytu pliku','error');
+  reader.readAsText(f);
+  inputEl.value=''; // allow re-import of same file
+}
+function doDownloadPrivateConfigTemplate(){
+  const blob=new Blob([getPrivateConfigTemplate()],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='etiudyos-config-template.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+  showToast('📄 Szablon pobrany','info');
+}
+function doExportPrivateConfig(){
+  if(!hasPrivateConfig()){showToast('❌ Brak configu do eksportu','error');return;}
+  const json=exportPrivateConfig();
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ts=new Date().toISOString().slice(0,10);
+  a.href=url;a.download=`etiudyos-config-${ts}.json`;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+  showToast('📤 Config wyeksportowany','success');
+}
+function doClearPrivateConfig(){
+  if(!confirm('Usunąć konfigurację prywatną z tego urządzenia?\n\nPlan lekcji, urodziny i ważne daty zostaną wyczyszczone. To działanie nie może być cofnięte (chyba że masz plik do zaimportowania).'))return;
+  localStorage.removeItem(PRIVATE_CONFIG_KEY);
+  // Also clear the tt_c1_*/tt_c2_* cells so old timetable doesn't linger
+  Object.keys(localStorage).filter(k=>k.startsWith('tt_c1_')||k.startsWith('tt_c2_')).forEach(k=>localStorage.removeItem(k));
+  // Clear legacy birthdays/importantDates overrides so they fall back to empty
+  localStorage.removeItem('birthdays');
+  localStorage.removeItem('importantDates');
+  showToast('🗑️ Config usunięty — odświeżanie...','info');
+  setTimeout(()=>location.reload(),800);
+}
+
+/* === CONSTANTS === */
+const MONTHS_PL =['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const MONTHS_GEN=['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+const DAYS_PL   =['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+const TT_TIMES  =[['7:30','8:15'],['8:20','9:05'],['9:10','9:55'],['10:05','10:50'],['11:00','11:45'],['11:50','12:35'],['12:50','13:35'],['13:50','14:35'],['14:40','15:25'],['15:30','16:15'],['16:20','17:05']];
+
+// ── Polish School Calendar (2024-2025) ────────────────────────────────────
+const SCHOOL_BREAKS=[
+  {name:'Ferie zimowe',start:'2025-02-10',end:'2025-02-16'},
+  {name:'Ferie wiosenne',start:'2025-04-07',end:'2025-04-13'},
+  {name:'Wakacje letnie',start:'2025-06-24',end:'2025-08-31'}
+];
+
+const POLISH_HOLIDAYS=[
+  {date:'2025-01-01',name:'Nowy Rok'},
+  {date:'2025-01-06',name:'Trzech Króli'},
+  {date:'2025-04-20',name:'Wielkanoc'},
+  {date:'2025-05-01',name:'Święto Pracy'},
+  {date:'2025-05-19',name:'Święto Flagi'},
+  {date:'2025-05-30',name:'Boże Ciało'},
+  {date:'2025-08-15',name:'Wniebowzięcie NMP'},
+  {date:'2025-11-01',name:'Wszystkich Świętych'},
+  {date:'2025-11-11',name:'Niepodległości'},
+  {date:'2025-12-25',name:'Boże Narodzenie'},
+  {date:'2025-12-26',name:'Drugi dzień Bożego Narodzenia'}
+];
+
+function isSchoolDay(date){
+  const dateStr=date.getFullYear()+'-'+(date.getMonth()+1).toString().padStart(2,'0')+'-'+date.getDate().toString().padStart(2,'0');
+  const dow=date.getDay();
+  
+  // Weekend
+  if(dow===0||dow===6)return false;
+  
+  // Holiday
+  if(POLISH_HOLIDAYS.some(h=>h.date===dateStr))return false;
+  
+  // School break
+  if(SCHOOL_BREAKS.some(b=>dateStr>=b.start&&dateStr<=b.end))return false;
+  
+  return true;
+}
+
+function getSchoolDayStatus(date){
+  if(!isSchoolDay(date))return 'Dzień wolny 🎉';
+  return 'Dzień nauki 📚';
+}
+const TT_DAYS   =['Pon','Wt','Śr','Czw','Pt'];
+const WMO={0:['☀️','Bezchmurnie'],1:['🌤️','Przeważnie słonecznie'],2:['⛅','Częściowe zachmurzenie'],3:['☁️','Pochmurnie'],45:['🌫️','Mgła'],48:['🌫️','Mgła osadzająca'],51:['🌦️','Lekka mżawka'],53:['🌦️','Mżawka'],55:['🌧️','Silna mżawka'],61:['🌧️','Lekki deszcz'],63:['🌧️','Deszcz'],65:['🌧️','Ulewny deszcz'],71:['🌨️','Lekki śnieg'],73:['❄️','Śnieg'],75:['❄️','Obfity śnieg'],77:['🌨️','Ziarnisty śnieg'],80:['🌦️','Przelotne opady'],81:['🌧️','Opady'],82:['⛈️','Gwałtowne opady'],85:['🌨️','Przelotny śnieg'],86:['❄️','Silny śnieg'],95:['⛈️','Burza'],96:['⛈️','Burza z gradem'],99:['⛈️','Silna burza']};
+
+/* === BIRTHDAY === */
+let bdTimer=null,bdSecsLeft=10;
+// Default birthdays come from the imported private config. If no config is
+// imported the list is empty (generic placeholders have no known birthdays).
+function getDfltBD(){
+  const cfg=getPrivateConfig();
+  return Array.isArray(cfg.birthdays)?cfg.birthdays.slice():[];
+}
+
+function getAge(yearBorn){
+  const now=new Date();
+  const age=now.getFullYear()-yearBorn;
+  return age;
+}
+function checkBirthdays(){
+  const now=new Date(),m=now.getMonth()+1,d=now.getDate();
+  const k=`bdShown_${now.getFullYear()}_${m}_${d}`;
+  if(sessionStorage.getItem(k))return;
+  const bds=safeLoad('birthdays',getDfltBD());
+  const matches=bds.filter(b=>Number(b.month)===m&&Number(b.day)===d&&b.month&&b.day);
+  if(!matches.length)return;
+  sessionStorage.setItem(k,'1');
+  showBirthday(matches.map(b=>esc(b.name)).join(' &amp; '));
+}
+function showBirthday(nameHtml){
+  buildBdDeco();
+  document.getElementById('bdName').innerHTML=nameHtml;
+  document.getElementById('bdProgressBar').style.width='100%';
+  document.getElementById('birthdayOverlay').classList.add('show');
+  bdSecsLeft=10;clearInterval(bdTimer);
+  bdTimer=setInterval(()=>{bdSecsLeft-=.1;document.getElementById('bdProgressBar').style.width=Math.max(0,(bdSecsLeft/10)*100)+'%';if(bdSecsLeft<=0)closeBirthday();},100);
+}
+function closeBirthday(){clearInterval(bdTimer);document.getElementById('birthdayOverlay').classList.remove('show');}
+function previewBirthday(){showBirthday('Testowe Imię');}
+function buildBdDeco(){
+  const se=document.getElementById('bdStars');se.innerHTML='';
+  for(let i=0;i<60;i++){const s=document.createElement('div');s.className='bd-star';const sz=Math.random()*4+1;s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${Math.random()*3+2}s;animation-delay:${Math.random()*4}s;`;se.appendChild(s);}
+  const ce=document.getElementById('bdConfettis');ce.innerHTML='';
+  const cols=['#f59e0b','#fbbf24','#ef4444','#22c55e','#3b82f6','#8b5cf6','#ec4899','#fff'];
+  for(let i=0;i<60;i++){const c=document.createElement('div');c.className='bd-confetti';c.style.cssText=`width:${Math.random()*10+6}px;height:${Math.random()*16+10}px;left:${Math.random()*100}%;background:${cols[~~(Math.random()*cols.length)]};animation-duration:${Math.random()*4+3}s;animation-delay:${Math.random()*4}s;`;ce.appendChild(c);}
+}
+
+/* === NAV === */
+let activeTab='home';
+function switchTab(id){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelector(`.nav-btn[data-tab="${id}"]`).classList.add('active');
+  document.getElementById('panels').scrollTop=0;
+  activeTab=id;
+  appStats.tabSwitches++;
+  trackAppEvent('tabSwitch');
+  if(id==='timetable')renderTimetable();
+  if(id==='cameras')renderCameras();
+  if(id==='doodle')initDoodle();
+  if(id==='settings')renderSettings();
+  if(id==='shopping')renderShop();
+  if(id==='chores')renderChores();
+  if(id==='calendar')renderCalendar();
+  if(id==='tasks')loadTaskLists();
+  if(id==='gemini')geminiOnOpen();
+}
+
+// ── Fullscreen & Kiosk Mode ────────────────────────────────────────────────
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(e=>console.warn('Fullscreen failed',e));
+  }else{
+    document.exitFullscreen();
+  }
+}
+
+function enterKioskMode(){
+  // Request fullscreen if available
+  if(document.documentElement.requestFullscreen){
+    document.documentElement.requestFullscreen().catch(e=>console.log('Fullscreen not available'));
+  }
+  // Hide address bar hint
+  window.scrollTo(0,1);
+  showToast('Tryb kiosku aktywny','success');
+}
+
+/* === CLOCK === */
+let lastDay=-1;
+function updateClock(){
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0'),ts=`${hh}:${mm}`;
+  document.getElementById('clockBig').textContent=ts;
+  document.getElementById('sideNavTime').textContent=ts;
+  document.getElementById('clockDateLine').textContent=`${DAYS_PL[now.getDay()]}, ${now.getDate()} ${MONTHS_GEN[now.getMonth()]} ${now.getFullYear()}`;
+  const hr=now.getHours();
+  document.getElementById('clockGreeting').textContent=hr>=5&&hr<12?'Dzień dobry! 👋':hr<18?'Dobry wieczór! ☀️':hr<22?'Dobry wieczór! 🌆':'Dobranoc! 🌙';
+  if(now.getDate()!==lastDay){lastDay=now.getDate();checkBirthdays();updateStats();updateCurrentLesson();renderCountdown();if(activeTab==='timetable')renderTimetable();}
+  checkDailyOperations();
+  applyNightMode();
+}
+
+/* === WEATHER === */
+async function fetchWeather(){
+  try{
+    const url='https://api.open-meteo.com/v1/forecast'
+      +'?latitude=52.2297&longitude=21.0122'
+      +'&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m'
+      +'&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,wind_speed_10m_max'
+      +'&timezone=Europe%2FWarsaw';
+    const r=await fetch(url);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    const c=d.current;
+    const wmo=WMO[c.weather_code]||['❓','Nieznane'];
+    document.getElementById('wEmoji').textContent=wmo[0];
+    document.getElementById('wTempBig').textContent=Math.round(c.temperature_2m)+'°C';
+    document.getElementById('wDesc').textContent=wmo[1];
+    document.getElementById('wHumidity').textContent=Math.round(c.relative_humidity_2m);
+    document.getElementById('wWind').textContent=Math.round(c.wind_speed_10m);
+    document.getElementById('wApparent').textContent=Math.round(c.apparent_temperature)+'°C';
+    
+    // Store current and forecast
+    safeSave('currentWeather',{temp:c.temperature_2m,code:c.weather_code,wind:c.wind_speed_10m,timestamp:Date.now()});
+    safeSave('weatherForecast',d.daily);
+    checkWeatherAlerts(c);
+    renderWeatherForecast();
+    suggestOutfit(c);
+  }catch(e){
+    console.warn('Weather fetch failed:',e);
+    document.getElementById('wDesc').textContent='Brak danych';
+  }
+}
+
+function renderWeatherForecast(){
+  const el=document.getElementById('weatherForecast');
+  if(!el)return;
+  
+  const forecast=safeLoad('weatherForecast',{});
+  if(!forecast.time||!forecast.weather_code){
+    el.innerHTML='<div style="font-size:12px;color:var(--text-dim);">Brak prognozy</div>';
+    return;
+  }
+  
+  el.innerHTML=forecast.time.slice(0,7).map((date,idx)=>{
+    const code=forecast.weather_code[idx];
+    const wmo=WMO[code]||['❓','?'];
+    const max=Math.round(forecast.temperature_2m_max[idx]);
+    const min=Math.round(forecast.temperature_2m_min[idx]);
+    const dateObj=new Date(date);
+    const dayName=DAYS_PL[dateObj.getDay()].substring(0,3);
+    
+    return`<div style="text-align:center;flex:1;padding:6px 4px;background:rgba(255,255,255,.04);border-radius:6px;font-size:11px;">
+      <div style="color:var(--text-dim);font-weight:600;margin-bottom:2px;">${dayName}</div>
+      <div style="font-size:16px;line-height:1;">${wmo[0]}</div>
+      <div style="color:var(--text);font-weight:700;font-size:12px;margin:2px 0;">${max}°</div>
+      <div style="color:var(--text-dim);font-size:10px;">${min}°</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Weather Alerts ────────────────────────────────────────────────────────
+function checkWeatherAlerts(current){
+  const alerts=[];
+  const temp=current.temperature_2m;
+  const wind=current.wind_speed_10m;
+  const code=current.weather_code;
+  
+  // Frost alert
+  if(temp<0){
+    alerts.push({type:'frost',msg:'⛈️ Mróz! Temp. '+Math.round(temp)+'°C',priority:2});
+  }
+  // High wind
+  if(wind>40){
+    alerts.push({type:'wind',msg:'💨 Silny wiatr! '+Math.round(wind)+' km/h',priority:2});
+  }
+  // Rain/thunderstorm
+  if([80,81,82,85,86].includes(code)){
+    alerts.push({type:'rain',msg:'🌧️ Deszcz/burza',priority:1});
+  }
+  // Snow
+  if([71,73,75,77,80].includes(code)){
+    alerts.push({type:'snow',msg:'❄️ Śnieg na drodze',priority:2});
+  }
+  
+  if(alerts.length){
+    const lastAlert=safeLoad('lastWeatherAlert',{});
+    const alert=alerts[0];
+    if(lastAlert.type!==alert.type||Date.now()-lastAlert.time>3600000){
+      showToast(alert.msg,'error');
+      safeSave('lastWeatherAlert',{type:alert.type,time:Date.now()});
+    }
+  }
+}
+
+/* === CLOTHING ADVICE === */
+const WC_CLEAR=[0,1];
+const WC_SUN=[0,1,2];
+const WC_RAIN=[51,53,55,61,63,65,80,81,82];
+const WC_THUNDER=[95,96,99];
+const WC_SNOW=[71,73,75,77,85,86];
+const WC_FOG=[45,48];
+
+function suggestOutfit(current){
+  const el=document.getElementById('wOutfitItems');
+  const hEl=document.getElementById('wOutfitHeadline');
+  if(!el||!hEl)return;
+  const temp=current.apparent_temperature!=null?current.apparent_temperature:current.temperature_2m;
+  const wind=current.wind_speed_10m||0;
+  const code=current.weather_code;
+  const now=new Date();
+  const month=now.getMonth()+1;
+  const hour=now.getHours();
+  const isDay=hour>=7&&hour<=20;
+  const items=[];
+  let headline='';
+  if(temp<-5){
+    headline='Bardzo zimno — ubierz się grubo!';
+    items.push({e:'🧥',t:'Kurtka zimowa',c:'cold'});
+    items.push({e:'🧣',t:'Szalik',c:'cold'});
+    items.push({e:'🧤',t:'Rękawiczki',c:'cold'});
+    items.push({e:'🎿',t:'Czapka zimowa',c:'cold'});
+    items.push({e:'👖',t:'Ciepłe spodnie',c:''});
+  }else if(temp<0){
+    headline='Mróz — ciepło się ubierz.';
+    items.push({e:'🧥',t:'Kurtka zimowa',c:'cold'});
+    items.push({e:'🎿',t:'Czapka',c:'cold'});
+    items.push({e:'🧤',t:'Rękawiczki',c:'cold'});
+  }else if(temp<7){
+    headline='Chłodno — potrzebna kurtka.';
+    items.push({e:'🧥',t:'Kurtka',c:'cold'});
+    items.push({e:'🧣',t:'Szalik',c:''});
+    items.push({e:'🎿',t:'Czapka',c:''});
+  }else if(temp<13){
+    headline='Prochłodno — bluza i lekka kurtka.';
+    items.push({e:'🧥',t:'Lekka kurtka',c:''});
+    items.push({e:'👕',t:'Bluza',c:''});
+    items.push({e:'👖',t:'Długie spodnie',c:''});
+  }else if(temp<18){
+    headline='Miło — bluza wystarczy.';
+    items.push({e:'👕',t:'Bluza',c:''});
+    items.push({e:'👖',t:'Długie spodnie',c:''});
+  }else if(temp<24){
+    headline='Ciepło — T-shirt i długie spodnie.';
+    items.push({e:'👕',t:'T-shirt',c:''});
+    items.push({e:'👖',t:'Długie spodnie',c:''});
+  }else if(temp<28){
+    headline='Ciepło — krótkie rękawki i szorty.';
+    items.push({e:'👕',t:'T-shirt',c:'hot'});
+    items.push({e:'🩳',t:'Szorty',c:'hot'});
+  }else{
+    headline='Bardzo gorąco — chroń się przed słońcem!';
+    items.push({e:'👕',t:'Lekki T-shirt',c:'hot'});
+    items.push({e:'🩳',t:'Szorty',c:'hot'});
+  }
+  const isSunny=WC_SUN.includes(code)&&isDay;
+  const isHighSunMonth=month>=4&&month<=9;
+  if(temp>=24&&isSunny){
+    items.push({e:'🧢',t:'Czapka na głowę',c:'hot'});
+    items.push({e:'🕶️',t:'Okulary słoneczne',c:'hot'});
+    items.push({e:'🧴',t:'Krem z filtrem',c:'hot'});
+  }else if(temp>=20&&WC_CLEAR.includes(code)&&isDay&&isHighSunMonth){
+    items.push({e:'🧢',t:'Czapka',c:''});
+    items.push({e:'🕶️',t:'Okulary',c:''});
+  }
+  if(WC_RAIN.includes(code)||WC_THUNDER.includes(code)){
+    items.push({e:'☂️',t:'Parasol',c:'warn'});
+    if(temp<15)items.push({e:'🥾',t:'Nieprzemakalne buty',c:'warn'});
+    if(WC_THUNDER.includes(code))items.push({e:'⚡',t:'Unikaj otwartych miejsc',c:'warn'});
+  }
+  if(WC_SNOW.includes(code)){
+    items.push({e:'🥾',t:'Zimowe buty',c:'cold'});
+    if(temp<-2)items.push({e:'🧤',t:'Rękawiczki',c:'cold'});
+  }
+  if(WC_FOG.includes(code)){
+    items.push({e:'🦺',t:'Odblaski',c:'warn'});
+  }
+  if(wind>=30&&temp>=5){
+    items.push({e:'💨',t:'Kurtka przeciwwiatrowa',c:'warn'});
+  }
+  if(temp>=25){
+    items.push({e:'💧',t:'Weź wodę!',c:'warn'});
+  }
+  const seen=new Set();
+  const unique=items.filter(it=>{if(seen.has(it.t))return false;seen.add(it.t);return true;});
+  hEl.textContent=headline;
+  el.innerHTML=unique.map(it=>{
+    const cls=it.c?'outfit-item oi-'+it.c:'outfit-item';
+    return`<span class="${cls}"><span class="oi-emoji">${esc(it.e)}</span>${esc(it.t)}</span>`;
+  }).join('');
+}
+
+/* === COUNTDOWN TO IMPORTANT DATES === */
+function getDfltDates(){
+  const cfg=getPrivateConfig();
+  if(Array.isArray(cfg.importantDates)&&cfg.importantDates.length)return cfg.importantDates.slice();
+  // Public-holiday defaults are not private — safe to ship
+  return[
+    {name:'Wigilia',day:24,month:12,emoji:'🎄',recurring:true},
+    {name:'Nowy Rok',day:1,month:1,emoji:'🎆',recurring:true},
+    {name:'Koniec roku szkolnego',day:27,month:6,emoji:'🎒',recurring:true},
+    {name:'Początek roku szkolnego',day:1,month:9,emoji:'📚',recurring:true}
+  ];
+}
+function nextOccurrence(entry,today){
+  const m=Number(entry.month),d=Number(entry.day);
+  if(!m||!d)return null;
+  let year=today.getFullYear();
+  let candidate=new Date(year,m-1,d);
+  candidate.setHours(0,0,0,0);
+  const t0=new Date(today);t0.setHours(0,0,0,0);
+  if(candidate<t0){
+    if(entry.recurring){
+      candidate=new Date(year+1,m-1,d);
+      candidate.setHours(0,0,0,0);
+    }else{
+      return null;
+    }
+  }
+  const diffMs=candidate-t0;
+  const days=Math.round(diffMs/86400000);
+  return{days,date:candidate};
+}
+function collectCountdownEntries(){
+  const dates=safeLoad('importantDates',getDfltDates());
+  const bds=safeLoad('birthdays',getDfltBD());
+  const entries=[];
+  dates.forEach(d=>{
+    if(!d||!d.day||!d.month)return;
+    entries.push({name:d.name||'Wydarzenie',day:d.day,month:d.month,emoji:d.emoji||'📅',recurring:d.recurring!==false});
+  });
+  bds.forEach(b=>{
+    if(!b||!b.day||!b.month)return;
+    entries.push({name:'Urodziny '+(b.name||''),day:b.day,month:b.month,emoji:'🎂',recurring:true,yearBorn:b.yearBorn});
+  });
+  const today=new Date();
+  return entries.map(e=>{
+    const occ=nextOccurrence(e,today);
+    if(!occ)return null;
+    let subtitle=occ.date.getDate()+' '+MONTHS_GEN[occ.date.getMonth()];
+    if(e.yearBorn){
+      const age=occ.date.getFullYear()-e.yearBorn;
+      subtitle+=' · '+age+' lat';
+    }
+    return{...e,days:occ.days,date:occ.date,subtitle};
+  }).filter(Boolean).sort((a,b)=>a.days-b.days);
+}
+function renderCountdown(){
+  const el=document.getElementById('countdownList');
+  if(!el)return;
+  const all=collectCountdownEntries();
+  const top=all.slice(0,4);
+  if(!top.length){
+    el.innerHTML='<div class="empty-state" style="padding:14px;"><span class="ei">📅</span>Brak dat</div>';
+    return;
+  }
+  el.innerHTML=top.map(e=>{
+    const cls=e.days===0?'cd-row cd-today':(e.days<=7?'cd-row cd-soon':'cd-row');
+    const daysLabel=e.days===0?'dziś':(e.days===1?'jutro':(e.days+' dni'));
+    const big=e.days===0?'🎉':(e.days===1?'1':e.days);
+    return`<div class="${cls}">
+      <div class="cd-emoji">${esc(e.emoji)}</div>
+      <div class="cd-body">
+        <div class="cd-name">${esc(e.name)}</div>
+        <div class="cd-date">${esc(e.subtitle)}</div>
+      </div>
+      <div class="cd-days">${esc(String(big))}<span class="cd-days-lbl">${esc(daysLabel)}</span></div>
+    </div>`;
+  }).join('');
+}
+function addImportantDate(){
+  const name=(document.getElementById('idNameInput')||{}).value;
+  const day=Number((document.getElementById('idDayInput')||{}).value);
+  const month=Number((document.getElementById('idMonthInput')||{}).value);
+  const emoji=((document.getElementById('idEmojiInput')||{}).value||'📅').trim()||'📅';
+  const recurring=!!(document.getElementById('idRecurringInput')||{}).checked;
+  if(!name||!day||!month){alert('Wypełnij nazwę, dzień i miesiąc!');return;}
+  const list=safeLoad('importantDates',getDfltDates());
+  list.push({name:name.trim(),day,month,emoji,recurring});
+  safeSave('importantDates',list);
+  document.getElementById('idNameInput').value='';
+  document.getElementById('idDayInput').value='';
+  document.getElementById('idMonthInput').value='';
+  document.getElementById('idEmojiInput').value='';
+  document.getElementById('idRecurringInput').checked=true;
+  renderImportantDatesList();
+  renderCountdown();
+}
+function deleteImportantDate(i){
+  const list=safeLoad('importantDates',getDfltDates());
+  list.splice(i,1);
+  safeSave('importantDates',list);
+  renderImportantDatesList();
+  renderCountdown();
+}
+function renderImportantDatesList(){
+  const el=document.getElementById('idList');
+  if(!el)return;
+  const list=safeLoad('importantDates',getDfltDates());
+  el.innerHTML=list.length?list.map((b,i)=>{
+    const hd=b.day&&b.month;
+    const ds=hd?`${b.day} ${MONTHS_GEN[b.month-1]}`:'⚠️ data nieskonfigurowana';
+    const rec=b.recurring!==false?' · co roku':'';
+    const em=b.emoji||'📅';
+    return`<div class="bd-row"><span class="bd-who">${esc(em)} ${esc(b.name||'')}</span><span class="bd-date-txt">${esc(ds+rec)}</span><button class="cd-del" onclick="deleteImportantDate(${i})">×</button></div>`;
+  }).join(''):`<div class="empty-state" style="padding:14px;"><span class="ei">📅</span>Brak dat</div>`;
+}
+
+/* === AIR QUALITY (Google Air Quality API) === */
+// Warsaw coordinates
+const GAQ_LAT = 52.2297;
+const GAQ_LON = 21.0122;
+
+/* === JOKE OF THE DAY === */
+const JOKES = [
+  "Dlaczego ryba nie chodzi do szkoły? Bo już jest w morzu wiedzy!",
+  "Co mówi jedna ściana do drugiej? Spotkamy się na rogu!",
+  "Dlaczego słonie mają duże uszy? Bo Kubusiowi Puchatkowi nie oddają.",
+  "Co robi rybak, gdy jest smutny? Idzie na po-ryb-anie.",
+  "Dlaczego komputer poszedł do lekarza? Bo miał wirusa!",
+  "Co mówi zero do ósemki? Ładny pasek!",
+  "Dlaczego nauczyciel nosił okulary słoneczne? Bo miał błyskotliwych uczniów!",
+  "Jakie zwierzę lubi matematykę? Kangur, bo zawsze ma coś w kieszeni do obliczenia.",
+  "Co mówi jedna bańka mydlana do drugiej? Nic — obie pękają ze śmiechu!",
+  "Dlaczego koty nigdy nie grają w karty w dżungli? Bo jest za dużo oszustów!",
+  "Jak wołają na Zenka? Ze-e-nek!",
+  "Dlaczego pająk jest dobry z komputerów? Bo świetnie radzi sobie z siecią!",
+  "Co powiedział kapelusz do szafy? Ty tu zostań, ja pójdę na głowę!",
+  "Dlaczego kura przekroczyła ulicę? Żeby dostać się na drugą stronę!",
+  "Co mówi jedna cegła do drugiej? Nic, bo nie ma ust — ale możemy coś zamurowac!",
+  "Jaki owoc jest najweselszy? Banan, bo zawsze się uśmiecha!",
+  "Dlaczego żyrafa ma tak długą szyję? Bo jej nogi śmierdzą!",
+  "Co mówi marchewka do kapusty? Hop! Zajęty kąt!",
+  "Dlaczego ptaki nie używają smartfonów? Bo już mają tweety!",
+  "Co się staje, gdy żaba stoi zbyt długo w słońcu? Robi się skoczna i opieczona!",
+  "Jakie buty nosi krokodyl? Krokodylki!",
+  "Dlaczego pingwin nie lata? Bo boi się wysokości!",
+  "Co mówi zegar do drukarki? Tik-tak, wydrukuj mi czas!",
+  "Dlaczego ryby tak dobrze pływają? Bo mają dużo wprawy!",
+  "Co robi misiek, gdy pada deszcz? Misiek moknie!",
+  "Jaki sport uprawia Kopciuszek? Bieg po pantofelek!",
+  "Dlaczego słoń nigdy nie zapomina? Bo ma wielką głowę!",
+  "Co robi pirat, gdy się nudzi? Arrr-anguje sobie przygodę!",
+  "Dlaczego księżyc nie chodzi do szkoły? Bo ma już za sobą wiele klas!",
+  "Co mówi lód do herbaty? Nie rób ze mnie zimnego drania!",
+  "Jakie zwierzę jest najlepszym detektywem? Pies, bo zawsze wytropuje!",
+  "Dlaczego niedźwiedź nie je fast foodu? Bo nie lubi się spieszyć z piciem miodu!",
+  "Co powiedział krawat do koszuli? Ty tu wisi, a ja idę na szyję!",
+  "Dlaczego matematycy lubią lasy? Bo mają tam dużo naturalnych logarytmów!",
+  "Co mówi jeden ząb do drugiego? Uśmiechnij się — ktoś nas fotografuje!",
+  "Dlaczego szkielet nie lubi szkoły? Bo jest z niego ofiara losu — same kości!",
+  "Jakie jest ulubione zwierzę programistów? Pająk — bo zna się na sieci!",
+  "Co mówi górnik do węgla? Wydobywam z ciebie to, co najlepsze!",
+  "Dlaczego krowa ma dzwonek? Bo zgubiła pilota!",
+  "Co powiedział ocean do plaży? Nic — tylko pomachał!",
+  "Dlaczego pies siedzi w cieniu? Bo nie chce zostać hot-dogiem!",
+  "Co mówi jedna śruba do drugiej? Nakręcasz mnie!",
+  "Dlaczego strach na wróble dostał nagrodę? Bo był w swojej dziedzinie wyróżniający!",
+  "Jakie warzywo jest najodważniejsze? Czosnek — bo odstraszys wszystkich!",
+  "Co mówi ziemniak do frytki? Nie poznałem cię w tej cienkiej figurze!",
+  "Dlaczego dinozaury wyginęły? Bo zapomniały zarejestrować domenę!",
+  "Co mówi jeden ołówek do drugiego? Coś mi tu nie gra — napisz to inaczej!",
+  "Dlaczego rakieta nie poszła na studia? Bo i tak była wyjątkowa!",
+  "Jak nazywa się niewidzialny człowiek? Nie da się — i tak go nie widać!",
+  "Co mówi kaczka do sprzedawcy? Czy mogę dostać rachunek na rachunek?",
+  "Dlaczego śpię z lampką nocną? Bo boję się ciemnej strony księżyca!",
+  "Co mówi lodówka do prądu? Odsuń się — muszę zostać chłodna!",
+  "Dlaczego słońce nie gra w piłkę? Bo zawsze wygrywa oświetleniem!",
+  "Co mówi jeden dym do drugiego? Ulatuję stąd!",
+  "Dlaczego mysz lubi komputery? Bo są jej domem — ma tam własną myszą norkę!",
+  "Co mówi jedna gwiazdka do drugiej? Twinkle, twinkle, little star — po polsku to i tak działa!",
+  "Dlaczego Alicja poszła do krainy czarów? Bo Google Maps nie działało!",
+  "Co robi koń po skoku przez płot? Odpoczywa od skakania!",
+  "Dlaczego jabłko nie lubi gruszki? Bo gruszka zawsze wyprzedza go o krok!",
+  "Co mówi jeden wulkan do drugiego? Wybucha mi z was dumą!",
+  "Dlaczego rybka jest dobra ze szkołą? Bo zawsze pływa w ławie!",
+  "Co powiedział jeden magnes do drugiego? Przyciągasz mnie!",
+  "Dlaczego kucharz jest zawsze spokojny? Bo wie, że każda zupa się ugotuje!",
+  "Co mówi jeden kwiat do drugiego? Widzę, że trochę przekwitasz!",
+  "Dlaczego roboty nie są głodne? Bo mają pełno bajtów!",
+  "Co mówi jeden kamień do drugiego? Nie ruszaj mnie — jestem skałą!",
+  "Dlaczego wąż jest dobry z matematyki? Bo zna się na spiralach!",
+  "Co mówi jeden but do drugiego? Idziemy razem, czy mam cię zostawić za sobą?",
+  "Dlaczego księżniczka zamówiła pizzę? Bo smok spalił jej kolację!",
+  "Co mówi jeden mróz do drugiego? Zmroziłeś mnie tym żartem!",
+  "Dlaczego pies uczył się szybkiego czytania? Bo chciał być raso-wany!",
+  "Co mówi ziemia do księżyca? Chodzisz wokół mnie jak zakochany!",
+  "Dlaczego kleszcz jest dobry z arytmetyki? Bo zawsze się liczy!",
+  "Co mówi jeden garnek do drugiego? Gotujemy razem!",
+  "Dlaczego sowa jest mądra? Bo czyta po nocach!",
+  "Co mówi jeden but do drugiego na boisku? Kopnij w to coś!",
+  "Dlaczego bałwan się boi wiosny? Bo czuje, że idą ciepłe czasy!",
+  "Co mówi jeden śnieg do drugiego? Ześlizgnij się!",
+  "Dlaczego kotek lubi internet? Bo tam są koty z całego świata!",
+  "Co mówi jeden balon do drugiego? Nie pryskaj!",
+  "Dlaczego mysz jest taka szybka? Bo ucieka od kota!",
+  "Co mówi jeden parasol do drugiego? Przykryj mnie, pada!",
+  "Dlaczego mrówka nie jest nigdy zmęczona? Bo ciągle w pracy!",
+  "Co mówi jeden robak do drugiego? Mam tu ziemię pod nogami!",
+  "Dlaczego żółw wygrał wyścig? Bo zając zasnął!",
+  "Co mówi rower do hulajnogi? Masz mniej kół, ale nie mniej racji!",
+  "Dlaczego chmura jest smutna? Bo płacze deszczem!",
+  "Co mówi jeden kamień do drugiego w rzece? Płyniemy w dobrym kierunku!",
+  "Dlaczego astronauta nie może jeść zupy? Bo w kosmosie łyżka unosi się w powietrzu!",
+  "Co mówi jeden klocek LEGO do drugiego? Trzymamy się razem!",
+  "Dlaczego drzewo nie chodzi do kina? Bo ma korzenie w ziemi!",
+  "Co mówi jeden ołtarz do drugiego? Stoję tu od wieków!",
+  "Dlaczego marchewka jest fajna? Bo jest zawsze na miejscu — w ziemi!",
+  "Co mówi jeden komputer do drugiego? Rozumiesz mnie — jesteśmy na tej samej stronie!",
+  "Dlaczego słoń pije dużo wody? Bo ma długą pamięć o pragnieniu!",
+  "Co mówi jeden fotel do drugiego? Usiądź i posiedź chwilę!",
+  "Dlaczego kwiatek nie lubi poniedziałku? Bo dopiero co odpoczął w niedzielę!",
+  "Co mówi jeden płot do drugiego? Ogródź się!",
+  "Dlaczego mały pies szczeka tak głośno? Bo chce, żeby go słyszano!",
+  "Co mówi jeden tornister do drugiego? Mamy ciężki dzień!",
+  "Dlaczego książka poszła do szkoły? Bo chciała być czytana!",
+  "Co mówi jeden nos do drugiego? Czuję, że coś tu nie gra!",
+  "Dlaczego trawa jest zawsze zielona? Bo dba o swój wygląd!",
+  "Co mówi jeden palec do drugiego? Trzymaj się razem — jesteśmy w jednej rękawiczce!",
+  "Dlaczego pingwin nosi frak? Bo lubi się stroić!",
+  "Co mówi jeden stół do drugiego? Podeprzyjmy się!",
+  "Dlaczego tygrys nie gra w chowanego? Bo zawsze go widać przez paski!",
+  "Co mówi jeden grzyb do drugiego? Jestem grzybem stulecia!",
+  "Dlaczego bocian nosi długi dziób? Bo paczki z dziećmi są ciężkie!",
+  "Co mówi jeden kran do drugiego? Puść wodę — mam dość ciśnienia!",
+  "Dlaczego żaba lubuje się w matematyce? Bo skacze z liczby na liczbę!",
+  "Co mówi jeden most do drugiego? Łączymy się!",
+  "Dlaczego herbata jest mądrą? Bo zaparzyła się przez lata!",
+  "Co mówi jeden dywan do drugiego? Wciągasz mnie!",
+  "Dlaczego lew nie je klaunów? Bo mają zbyt śmieszny smak!",
+  "Co mówi jeden but do drugiego zimą? Mamy zimne stopy, ale idziemy!",
+  "Dlaczego ogórek jest taki spokojny? Bo kisi w słoiku i medytuje!",
+  "Co mówi jedna chmura do drugiej? Zbieramy się na coś wielkiego!",
+  "Dlaczego koń jest dobry z geografii? Bo zna wszystkie szlaki!",
+  "Co mówi jeden wąs do drugiego? Mam cię pod nosem!",
+  "Dlaczego pies uwielbia pocztę? Bo przynosi ważne wiadomości — i goni listonosza!",
+  "Co mówi jeden kaktus do drugiego? Mam cię na oku — i na kolcu!",
+  "Dlaczego żyrafa jest dobra z siatkówki? Bo zawsze ma przewagę wzrostu!",
+  "Co mówi jeden zegarek do drugiego? Mamy czas!",
+  "Dlaczego smok nie lubi dentysty? Bo boi się, że zgaszą mu ogień!",
+  "Co mówi jeden komin do drugiego? Dymisja!",
+  "Dlaczego sałata jest taka chłodna? Bo zawsze siedzi w lodówce!",
+  "Co mówi jeden kalosz do drugiego? W błocie jesteśmy razem!",
+  "Dlaczego słoń boi się myszy? Bo to klasyk!",
+  "Co mówi jeden krawat do drugiego na weselu? Zawiązujemy się na dobre!",
+  "Dlaczego krokodyl jest zawsze uśmiechnięty? Bo ma szeroki uśmiech!",
+  "Co mówi jeden ser do drugiego? Dziurawisz mnie swoim wzrokiem!",
+  "Dlaczego wróbel jest dobry ze śpiewu? Bo ćwiczy od świtu!",
+  "Co mówi jedna łapka do drugiej? Chodź, trzymajmy się razem!",
+  "Dlaczego kula śniegowa boi się słońca? Bo wie, że to jest jej koniec!",
+  "Co mówi jeden kucharz do drugiego? Ugotowałeś mnie swoim żartem!",
+  "Dlaczego rekiny nie jedzą klaunów ryb? Bo mają śmieszny smak!",
+  "Co mówi jeden rower do rowerzysty? Kręci mi się w głowie od twoich kilometrów!",
+  "Dlaczego wiewiórka chowa orzechy? Bo boi się, że zimą zabraknie przekąsek!",
+  "Co mówi jedna miotła do drugiej? Zamiatamy razem!",
+  "Dlaczego woda jest zawsze spokojna? Bo nie chce zrobić fali!",
+  "Co mówi jeden kamień do kowala? Nie bij mnie — i tak jestem twardy!",
+  "Dlaczego motyl lubi kwiaty? Bo to naturalne!",
+  "Co mówi jeden most do drugiej rzeki? Przeskocz mnie, jeśli potrafisz!",
+  "Dlaczego pająk jest dobry z sieci? Bo to jego naturalne środowisko!",
+  "Co mówi jeden ząb do dentysty? Proszę, nie wiercić!",
+  "Dlaczego chleb jest popularny? Bo każdy go lubi na co dzień!",
+  "Co mówi jeden talerz do zupy? Wskakuj, zapraszam!",
+  "Dlaczego ryba jest cicha? Bo woda jest doskonałym izolatorem dźwięku!",
+  "Co mówi jeden kałamarz do atramentu? Płyń ze mną!",
+  "Dlaczego ptak lubi śpiewać rano? Bo jest skowronkiem, nie sową!",
+  "Co mówi jeden kubek do drugiego? Herbatka czy kawka — trzymamy się razem!",
+  "Dlaczego kret nie lubi słońca? Bo jest podziemnym artystą!",
+  "Co mówi jedna gwiazda do drugiej w nocy? Lśnijmy razem!",
+  "Dlaczego królik skacze? Bo nie umie chodzić powoli!",
+  "Co mówi jeden las do drugiego? Razem tworzymy płuca Ziemi!",
+  "Dlaczego papuga powtarza słowa? Bo lubi dobrze zapamiętać!",
+  "Co mówi jeden kwadrat do koła? Nie mam żadnych kątów, żeby cię krytykować!",
+  "Dlaczego jeż jest nietykalny? Bo ma dobre uzbrojenie!",
+  "Co mówi jeden listek do drugiego? Trzymajmy się gałęzi!",
+  "Dlaczego ślimak jest powolny? Bo niesie dom na plecach!",
+  "Co mówi jedna cyferka do drugiej? Razem tworzymy wielką liczbę!",
+  "Dlaczego bałwan się cieszy zimą? Bo to jego najlepszy sezon!",
+  "Co mówi jeden piasek do drugiego? Sypmy się razem!",
+  "Dlaczego lampa jest mądra? Bo daje światło w ciemności!",
+  "Co mówi jedna łódka do drugiej? Płyniemy tym samym kursem!",
+  "Dlaczego rower lubi góry? Bo uwielbia wyzwania!",
+  "Co mówi jedna gąsienica do drugiej? Pewnego dnia będziemy motylami!",
+  "Dlaczego szczeniak jest zawsze wesoły? Bo każdy dzień to dla niego przygoda!",
+  "Co mówi jeden piłkarz do drugiego? Kopnijmy to razem!",
+  "Dlaczego cukier jest popularny? Bo każdy go słodzi!",
+  "Co mówi jedna planeta do drugiej? Kręcimy się wokół czegoś ważnego!",
+  "Dlaczego mrówka jest silna? Bo dźwiga dwadzieścia razy więcej niż waży!",
+  "Co mówi jeden szalik do czapki? Razem jest nam ciepło!",
+  "Dlaczego bociany latają na południe? Bo południe jest bliżej niż Antarktyda!",
+  "Co mówi jeden słoik do drugiego? Zakręć się!",
+  "Dlaczego kleszcze nie mają kolegów? Bo wszyscy od nich stronią!",
+  "Co mówi jeden ołówek do gumki? Popraw mnie, jeśli się mylę!",
+  "Dlaczego żaba siedzi na liściu? Bo nie ma sofy!",
+  "Co mówi jeden klucz do zamka? Otwórzmy się na nowe możliwości!",
+  "Dlaczego kogut pieje rano? Bo nie ma budzika!",
+  "Co mówi jedna igła do drugiej? Trzymamy nić!",
+  "Dlaczego wielbłąd może długo nie pić? Bo ma zapas — jak dobry harcerz!",
+  "Co mówi jeden deszcz do drugiego? Padamy na siebie!",
+  "Dlaczego lody lubią lato? Bo to ich czas świetności!",
+  "Co mówi jeden kwiat do pszczoły? Zapraszam, mam dla ciebie coś słodkiego!",
+  "Dlaczego żyrafy nie kłamią? Bo widać je ze zbyt daleka!",
+  "Co mówi jeden koszyk do drugiego? Mamy pełno do zrobienia!",
+  "Dlaczego zając biega tak szybko? Bo lubi być pierwszy!",
+  "Co mówi jedna rzeka do drugiej? Płyniemy w tę samą stronę!",
+  "Dlaczego sowa śpi w dzień? Bo pracuje nocną zmianę!",
+  "Co mówi jeden patyk do drugiego? Trzymajmy się razem, bo złamiemy się osobno!",
+  "Dlaczego delfin jest inteligentny? Bo cały czas się uśmiecha i myśli!",
+  "Co mówi jedna góra do drugiej? Wznosimy się ponad przeciętność!",
+  "Dlaczego woda deszczowa jest czysta? Bo przeszła długą podróż w chmurach!",
+  "Co mówi jeden most do roweru? Przejedź po mnie ostrożnie!",
+  "Dlaczego kura gdacze? Bo ma coś do powiedzenia!",
+  "Co mówi jeden talerz do widelca? Trzymaj mnie mocno!",
+  "Dlaczego jesień ma kolorowe liście? Bo lubi się stroić przed zimą!",
+  "Co mówi jeden dom do drugiego? Sąsiedztwo to połowa życia!",
+  "Dlaczego pies jest wierny? Bo nie zna słowa 'zdrada'!",
+  "Co mówi jedna skarpeta do drugiej? Razem nie zgubimy się w praniu!",
+  "Dlaczego słońce wstaje na wschodzie? Bo na zachodzie ma swój zachód!",
+  "Co mówi jeden liść do drugiego jesienią? Czas na kolorowy odlot!",
+  "Dlaczego kosmita odwiedził Ziemię? Bo słyszał, że mamy pizzę!",
+  "Co mówi jeden bałwan do drugiego na wiosnę? Czuję, że coś mi kapie!",
+  "Dlaczego smok nie może grać w szachy? Bo zawsze zjada figury!",
+  "Co mówi jedna czekolada do drugiej? Słodko mi z tobą!",
+  "Dlaczego panda jest w czerni i bieli? Bo nie zdążyła na wydruk kolorowy!",
+  "Co mówi jeden zeszyt do kredki? Zostaw po sobie ślad!",
+  "Dlaczego kometa lata tak szybko? Bo ma ważne spotkanie po drugiej stronie układu!",
+  "Co mówi jeden budzik do drugiego? Nie zasypiaj na służbie!",
+  "Dlaczego chomik kręci się w kółko? Bo lubi jogging bez wychodzenia z domu!",
+  "Co mówi jedna gwiazdka do Mikołaja? Widziałam wszystko co robiłeś!",
+  "Dlaczego gwiazdki świecą tak jasno? Bo lubią zwracać na siebie uwagę!",
+  "Co mówi jeden śnieg do dziecka? Zrób ze mnie coś pięknego!",
+  "Dlaczego renifer ma tak duże poroże? Bo go głowa rośnie od dobrego jedzenia u Mikołaja!",
+  "Co mówi jeden piernik do drugiego? Jesteśmy obleczeni w lukier życia!",
+  "Dlaczego choinka lubi grudzień? Bo w końcu dostaje lampki!",
+  "Co mówi jeden prezent do drugiego pod choinką? Zostajemy tu do Wigilii — wytrzymamy!",
+  "Dlaczego Mikołaj jest zawsze wesoły? Bo wie, że dzieci go kochają!",
+  "Co mówi jedno sanki do drugich? Jedźmy razem na dół!",
+  "Dlaczego Mikołaj lata reniferami? Bo samolotem nie wejdzie przez komin!",
+  "Co mówi jeden groszek do drugiego w zupie? Utrzymujemy się na powierzchni!",
+  "Dlaczego królik wielkanocny boi się czekolady? Bo boi się, że zjedzą jego jaja!",
+  "Co mówi jeden pisanki do drugiej? Jesteśmy kolorowe i wyjątkowe!",
+  "Dlaczego jajko jest tak mądre? Bo siedzi i myśli przez cały dzień!",
+  "Co mówi jeden bocian do drugiego wiosną? Wróciłem — co tu nowego?",
+  "Dlaczego słonecznik patrzy w słońce? Bo szuka inspiracji!",
+  "Co mówi jedna burza do drugiej? Grzmij, bo inaczej nikt nas nie usłyszy!",
+  "Dlaczego tęcza pojawia się po deszczu? Bo chce być najpiękniejsza, gdy jest jeszcze mokro!",
+  "Co mówi jeden balon do drugiego na urodzinach? Unosimy humor!",
+  "Dlaczego tort urodzinowy jest tak ważny? Bo bez niego nie ma ilu świeczek zdmuchnąć!",
+  "Co mówi jedna świeczka do drugiej na torcie? Razem dajemy tyle światła, ile lat!",
+  "Dlaczego przyjaciele są jak gwiazdy? Bo nawet gdy ich nie widać, zawsze są!",
+  "Co mówi jeden uśmiech do drugiego? Robimy komuś dzień lepszym!",
+  "Dlaczego żart jest dobry na każdą okazję? Bo śmiech to zdrowie — i to za darmo!",
+  "Co mówi jeden dzień do drugiego? Dobry dzień zaczyna się od uśmiechu!",
+  "Dlaczego dzieci lubią wakacje? Bo wtedy kto inny ma lekcje!",
+  "Co mówi jeden pociąg do stacji? Za chwilę będę — bez opóźnień!",
+  "Dlaczego ośmiornica jest dobra z gry na instrumentach? Bo ma osiem ramion!",
+  "Co mówi jeden pirat do drugiego? Rrr — mamy pełno przygód do przeżycia!",
+  "Dlaczego Kopernik był genialny? Bo cały świat się wokół niego kręcił!",
+  "Co mówi jeden dinozaur do drugiego? Mimo że wyginęliśmy, jesteśmy popularni!",
+  "Dlaczego astronauta dobrze śpi? Bo kosmiczne cisze są najgłębsze!",
+  "Co mówi jeden robot do drugiego? Przetwarzam twój żart — jest logicznie zabawny!",
+  "Dlaczego superbohater zawsze wygrywa? Bo zawsze przychodzi w odpowiednim momencie!",
+  "Co mówi jeden smok do drugiego? Mamy gorący charakter — to normalne!",
+  "Dlaczego jednoróżec jest tak wyjątkowy? Bo jest jedyny w swoim rodzaju!",
+  "Co mówi jeden zamek do drugiego? Mamy bogatą historię!",
+  "Dlaczego rycerz zawsze poleruje zbroję? Bo chce błyszczeć na tle innych!",
+  "Co mówi jedna bajka do drugiej? Kończymy z happy endem — inaczej się nie da!",
+  "Dlaczego wróżka zawsze ma różdżkę? Bo bez niej to tylko pani z skrzydełkami!",
+  "Co mówi jeden smok do księżniczki? Przepraszam za spalone kolacje — to była przypadkowe!",
+  "Dlaczego książę zawsze szuka księżniczki? Bo sam nie potrafi gotować!",
+  "Co mówi jeden trolling do drugiego? Śmiać się — czy trollować dalej?",
+  "Dlaczego woda morska jest słona? Bo ryby nie przepadają za słodkościami!",
+  "Co mówi jedna fala do drugiej? Rozbijamy się razem o brzeg!",
+  "Dlaczego delfin nie lubi gramatyki? Bo nie znosi reguł — woli skakać!",
+  "Co mówi jeden krab do drugiego? Chodźmy bokiem, jak zwykle!",
+  "Dlaczego rekin ma tak dużo zębów? Bo nie ma ubezpieczenia dentystycznego!",
+  "Co mówi jeden konik morski do drugiego? Galopujemy powoli, ale z klasą!",
+  "Dlaczego ośmiornica jest dobra w chowanego? Bo może być w ośmiu miejscach naraz!",
+  "Co mówi jedna rozgwiazda do drugiej? Świecimy pod wodą!",
+  "Dlaczego dzieci lubią bajki? Bo każda kończy się 'i żyli długo i szczęśliwie'!",
+  "Co mówi jedna kredka do drugiej? Kolorujemy świat razem!",
+  "Dlaczego zabawki lubią swoje miejsce na półce? Bo to ich dom!",
+  "Co mówi jeden klocek do drugiego? Budujemy razem coś wielkiego!",
+  "Dlaczego dziecko śmia się przez sen? Bo mu się śnią zabawne żarty!"
+];
+
+function renderJoke(){
+  const el=document.getElementById('jokeDayText');
+  if(!el) return;
+  const dayOfYear=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/(1000*60*60*24));
+  const idx=dayOfYear % JOKES.length;
+  el.textContent=JOKES[idx];
+}
+
+
+
+/* === STATS === */
+function updateStats(){
+  const ps=safeLoad('shopping',[]).filter(i=>!i.done).length;
+  const pc=safeLoad('chores',[]).filter(i=>!i.done).length;
+  const pt=window._taskCount||0;
+  [['statShop','statShop2'],['statChores','statChores2'],['statTasks','statTasks2']].forEach(([a,b],idx)=>{
+    const vals=[ps,pc,pt];
+    [a,b].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=vals[idx];});
+  });
+}
+
+/* === CURRENT LESSON === */
+function updateCurrentLesson(){
+  const now=new Date(),dow=now.getDay();
+  const el=document.getElementById('currentLessonInfo');
+  const lbl=document.getElementById('lessonCardLabel');
+  if(!el)return;
+
+  // Weekend — pokaż lekcje na poniedziałek
+  if(dow===0||dow===6){
+    if(lbl)lbl.textContent='Lekcje w poniedziałek';
+    showTomorrowLessons(el,0);
+    return;
+  }
+
+  const di=dow-1; // 0=Pn … 4=Pi
+  const cur=now.getHours()*60+now.getMinutes();
+
+  // Znajdź koniec ostatniej lekcji dzisiaj (u dowolnego dziecka)
+  let lastEndMin=0;
+  getChildren().forEach(child=>{
+    TT_TIMES.forEach(([,e],pi)=>{
+      if(safeLoad(`tt_${child.id}_${di}_${pi}`,'')){
+        const[eh,em]=e.split(':').map(Number);
+        lastEndMin=Math.max(lastEndMin,eh*60+em);
+      }
+    });
+  });
+
+  // Po ostatniej lekcji — pokaż jutro
+  if(lastEndMin===0||cur>lastEndMin){
+    const nextDi=di===4?0:di+1;
+    const jutroNames=['poniedziałek','wtorek','środę','czwartek','piątek'];
+    if(lbl)lbl.textContent=`Lekcje jutro (${jutroNames[nextDi]})`;
+    showTomorrowLessons(el,nextDi);
+    return;
+  }
+
+  // W trakcie lekcji lub przed nimi
+  if(lbl)lbl.textContent='Aktualna lekcja';
+  let html='';
+  getChildren().forEach(child=>{
+    TT_TIMES.forEach(([s,e],pi)=>{
+      const[sh,sm]=s.split(':').map(Number);
+      const[eh,em]=e.split(':').map(Number);
+      if(cur>=sh*60+sm&&cur<=eh*60+em){
+        const subj=safeLoad(`tt_${child.id}_${di}_${pi}`,'');
+        if(subj)html+=`<div style="margin-bottom:10px;"><span style="font-size:11px;font-weight:800;color:var(--lime);text-transform:uppercase;letter-spacing:1px;">${esc(child.name)}</span><br><span style="font-size:22px;font-weight:800;color:#fff;">${esc(subj)}</span><br><span style="font-size:12px;color:var(--text-dark-dim);">${s} – ${e}</span></div>`;
+      }
+    });
+  });
+  el.innerHTML=html||'<span style="color:var(--text-dark-dim);font-size:15px;font-weight:600;">☕ Przerwa</span>';
+}
+
+function showTomorrowLessons(el,tomorrowDi){
+  let html='';
+  getChildren().forEach(child=>{
+    const lessons=[];
+    TT_TIMES.forEach(([s,e],pi)=>{
+      const subj=safeLoad(`tt_${child.id}_${tomorrowDi}_${pi}`,'');
+      if(subj)lessons.push({subj,s,pi});
+    });
+    if(!lessons.length)return;
+    html+=`<div style="margin-bottom:11px;">
+      <div style="font-size:10px;font-weight:800;color:var(--lime);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">${esc(child.name)}</div>
+      ${lessons.map((l,i)=>`<div style="display:flex;align-items:baseline;gap:7px;padding:2px 0;">
+        <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,.35);min-width:14px;text-align:right;">${l.pi}</span>
+        <span style="font-size:11px;color:var(--text-dark-dim);min-width:34px;font-weight:600;">${esc(l.s)}</span>
+        <span style="font-size:13px;font-weight:700;color:#fff;">${esc(l.subj)}</span>
+      </div>`).join('')}
+    </div>`;
+  });
+  el.innerHTML=html||'<span style="color:var(--text-dark-dim);font-size:14px;font-weight:600;">📭 Brak lekcji</span>';
+}
+
+/* === CALENDAR === */
+let calDate=new Date(),calSelected=null,calEvents=[];
+function renderCalendar(){
+  const y=calDate.getFullYear(),m=calDate.getMonth();
+  document.getElementById('calMonth').textContent=`${MONTHS_PL[m]} ${y}`;
+  const first=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),today=new Date();
+  let html='';
+  ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].forEach(d=>{html+=`<div class="cal-dow">${d}</div>`;});
+  const off=(first+6)%7,prev=new Date(y,m,0).getDate();
+  for(let i=off-1;i>=0;i--)html+=`<div class="cal-day other-month">${prev-i}</div>`;
+  for(let d=1;d<=dim;d++){
+    const iT=d===today.getDate()&&m===today.getMonth()&&y===today.getFullYear();
+    const iS=calSelected&&d===calSelected.getDate()&&m===calSelected.getMonth()&&y===calSelected.getFullYear();
+    const hEv=calEvents.some(e=>{const ed=new Date(e.start?.dateTime||e.start?.date);return ed.getDate()===d&&ed.getMonth()===m&&ed.getFullYear()===y;});
+    html+=`<div class="cal-day${iT?' today':''}${iS?' selected':''}${hEv?' has-event':''}" onclick="calSelectDay(${d})">${d}</div>`;
+  }
+  const rem=(off+dim)%7;for(let i=1;i<=(rem?7-rem:0);i++)html+=`<div class="cal-day other-month">${i}</div>`;
+  document.getElementById('calGrid').innerHTML=html;
+  if(calSelected)showCalEvs(calSelected);
+}
+function calNav(dir){calDate.setMonth(calDate.getMonth()+dir);renderCalendar();}
+function calSelectDay(d){calSelected=new Date(calDate.getFullYear(),calDate.getMonth(),d);renderCalendar();}
+function showCalEvs(date){
+  const ds=date.toDateString();
+  document.getElementById('calEventTitle').textContent=`${DAYS_PL[date.getDay()]}, ${date.getDate()} ${MONTHS_GEN[date.getMonth()]}`;
+  const evs=calEvents.filter(e=>new Date(e.start?.dateTime||e.start?.date).toDateString()===ds);
+  document.getElementById('calEventList').innerHTML=evs.length
+    ?evs.map(e=>{const s=new Date(e.start?.dateTime||e.start?.date);const t=e.start?.dateTime?`${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}`:'Cały dzień';return`<div class="cev-item"><div class="cev-dot"></div><div class="cev-time">${esc(t)}</div><div class="cev-name">${esc(e.summary||'Brak tytułu')}</div></div>`;}).join('')
+    :`<div class="empty-state"><span class="ei">📅</span>Brak wydarzeń</div>`;
+}
+function showUpcomingEvents(){
+  const el=document.getElementById('homeEvents');
+  if(!el||!calEvents||!calEvents.length){
+    el.innerHTML=`<div class="empty-state"><span class="ei">📅</span>Brak wydarzeń</div>`;
+    return;
+  }
+  
+  // Get next 3 upcoming events
+  const now=new Date();
+  const upcoming=calEvents
+    .filter(e=>{
+      const start=new Date(e.start?.dateTime||e.start?.date);
+      return start>=now;
+    })
+    .sort((a,b)=>new Date(a.start?.dateTime||a.start?.date)-new Date(b.start?.dateTime||b.start?.date))
+    .slice(0,3);
+  
+  if(!upcoming.length){
+    el.innerHTML=`<div class="empty-state"><span class="ei">✅</span>Brak zbliżających się wydarzeń</div>`;
+    return;
+  }
+  
+  el.innerHTML=upcoming.map((e,idx)=>{
+    const start=new Date(e.start?.dateTime||e.start?.date);
+    const isAllDay=!e.start?.dateTime;
+    const dateStr=start.toLocaleDateString('pl-PL',{weekday:'short',month:'short',day:'numeric'});
+    const timeStr=isAllDay?'Cały dzień':`${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')}`;
+    
+    return`<div class="ev-row" style="margin-bottom:8px;padding:8px;background:rgba(158,240,48,.08);border-radius:8px;border-left:3px solid var(--lime);">
+      <div style="font-size:11px;font-weight:700;color:var(--lime);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">${dateStr}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+        <span style="font-size:13px;font-weight:800;color:var(--text);">${esc(e.summary||'Brak tytułu')}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);font-weight:600;">${timeStr}</div>
+    </div>`;
+  }).join('');
+}
+
+function showTodayEvents(events){
+  calEvents=events;
+  const evs=events.filter(e=>new Date(e.start?.dateTime||e.start?.date).toDateString()===new Date().toDateString())
+    .sort((a,b)=>new Date(a.start?.dateTime||a.start?.date)-new Date(b.start?.dateTime||b.start?.date));
+  
+  // Show today's events if any, otherwise show upcoming
+  if(evs.length){
+    document.getElementById('homeEvents').innerHTML=evs.map(e=>{
+      const s=new Date(e.start?.dateTime||e.start?.date);
+      const t=e.start?.dateTime?`${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}`:'Cały dzień';
+      return`<div class="ev-row" style="margin-bottom:8px;padding:8px;background:rgba(79,172,254,.1);border-radius:8px;border-left:3px solid var(--blue);"><span class="ev-pill${t?'':' allday'}" style="display:inline-block;margin-bottom:4px;">${esc(t)}</span><br><span class="ev-name" style="font-size:14px;font-weight:700;color:var(--dark);">${esc(e.summary||'Brak tytułu')}</span></div>`;
+    }).join('');
+  }else{
+    showUpcomingEvents();
+  }
+}
+
+// ── Performance Monitoring ────────────────────────────────────────────────
+const PERF_METRICS={};
+
+function measurePerf(label){
+  PERF_METRICS[label]=performance.now();
+}
+
+function logPerfMetric(label){
+  const start=PERF_METRICS[label];
+  if(start){
+    const duration=performance.now()-start;
+    console.log(`[PERF] ${label}: ${duration.toFixed(2)}ms`);
+    delete PERF_METRICS[label];
+  }
+}
+
+function getDebugInfo(){
+  return{
+    app:'EtiudyOS v2.0',
+    lastSync:lastSyncTime?new Date(lastSyncTime).toLocaleTimeString('pl-PL'):'-',
+    isOnline,
+    isSignedIn,
+    cacheSize:Object.keys(localStorage).length,
+    storageUsed:JSON.stringify(localStorage).length,
+    gapiReady,
+    gisReady
+  };
+}
+
+function logDebugInfo(){
+  console.table(getDebugInfo());
+}
+
+// ── Voice Commands (Web Speech API) ──────────────────────────────────────
+const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+let voiceRecognizer=null;
+let isListening=false;
+let voiceTimeout=null;
+
+function initVoiceRecognition(){
+  if(!SpeechRecognition){
+    console.warn('Web Speech API not supported');
+    showToast('❌ Web Speech API niedostępny w Twojej przeglądarce','error');
+    return false;
+  }
+  
+  try{
+    voiceRecognizer=new SpeechRecognition();
+    voiceRecognizer.continuous=false;
+    voiceRecognizer.interimResults=true;
+    voiceRecognizer.lang='pl-PL';
+    
+    voiceRecognizer.onstart=()=>{
+      isListening=true;
+      console.log('Voice recognition started');
+      showToast('🎤 Słucham...','info');
+    };
+    
+    voiceRecognizer.onend=()=>{
+      isListening=false;
+      clearTimeout(voiceTimeout);
+      console.log('Voice recognition ended');
+    };
+    
+    voiceRecognizer.onresult=(event)=>{
+      let transcript='';
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        transcript+=event.results[i][0].transcript;
+      }
+      
+      if(event.isFinal){
+        console.log('Final transcript:',transcript);
+        processVoiceCommand(transcript.toLowerCase().trim());
+      }
+    };
+    
+    voiceRecognizer.onerror=(event)=>{
+      console.error('Speech recognition error:',event.error);
+      isListening=false;
+      
+      // Map common errors to Polish messages
+      const errorMessages={
+        'no-speech':'Brak dźwięku - spróbuj mówić głośniej',
+        'audio-capture':'Brak dostępu do mikrofonu',
+        'network':'Problem z siecią - sprawdź internet',
+        'service-not-allowed':'Usługa niedostępna',
+        'bad-grammar':'Błąd rozpoznawania'
+      };
+      
+      const msg=errorMessages[event.error]||event.error;
+      showToast('❌ Błąd mikrofonu: '+msg,'error');
+    };
+    
+    // Add timeout - stop listening after 10 seconds of silence
+    voiceRecognizer.maxAlternatives=1;
+    voiceRecognizer.interimResults=true;
+    
+    console.log('Voice recognition initialized');
+    return true;
+  }catch(e){
+    console.error('Failed to initialize voice recognition:',e);
+    showToast('❌ Błąd inicjalizacji mikrofonu','error');
+    return false;
+  }
+}
+
+function startVoiceCommand(){
+  console.log('startVoiceCommand called - isListening:',isListening,'voiceRecognizer:',voiceRecognizer!==null);
+  
+  if(!voiceRecognizer){
+    console.log('Initializing voice recognizer...');
+    if(!initVoiceRecognition()){
+      return;
+    }
+  }
+  
+  if(isListening){
+    console.log('Already listening, stopping...');
+    voiceRecognizer.stop();
+    isListening=false;
+    return;
+  }
+  
+  try{
+    console.log('Starting voice recognition...');
+    voiceRecognizer.start();
+    
+    // Auto-stop after 10 seconds of silence
+    clearTimeout(voiceTimeout);
+    voiceTimeout=setTimeout(()=>{
+      if(isListening){
+        console.log('Voice timeout - stopping...');
+        voiceRecognizer.stop();
+        isListening=false;
+        showToast('⏱️ Timeout - brak dźwięku','info');
+      }
+    }, 10000);
+    
+  }catch(e){
+    console.error('Error starting voice recognition:',e);
+    showToast('❌ Błąd uruchamiania mikrofonu: '+e.message,'error');
+  }
+}
+
+function processVoiceCommand(command){
+  const commands={
+    'dodaj zakupy':()=>switchTab('shopping'),
+    'dodaj obowiązek':()=>switchTab('chores'),
+    'dodaj zadanie':()=>switchTab('tasks'),
+    'pokaż kalendarz':()=>switchTab('calendar'),
+    'pokaż lekcje':()=>switchTab('timetable'),
+    'synchronizuj':()=>isSignedIn?fetchCalEvents():googleSignIn(),
+    'ustawienia':()=>switchTab('settings'),
+    'dom':()=>switchTab('home'),
+    'rysuj':()=>switchTab('doodle'),
+    'zrób zdjęcie':()=>captureKioskPhoto()
+  };
+  
+  for(const[key,action]of Object.entries(commands)){
+    if(command.includes(key)){
+      action();
+      showToast('✅ '+key,'success');
+      return;
+    }
+  }
+  
+  showToast('❓ Polecenie: "'+command+'"','info');
+}
+function getSmartSuggestion(){
+  const now=new Date();
+  const hr=now.getHours();
+  const dow=now.getDay();
+  
+  // Morning routine
+  if(hr>=5&&hr<8){
+    return {icon:'🌅',text:'Przygotuj się do szkoły!',action:'() => switchTab("timetable")'};
+  }
+  
+  // School time
+  if(hr>=8&&hr<15&&dow>0&&dow<6&&isSchoolDay(now)){
+    return {icon:'📚',text:'Lekcje w toku',action:'() => switchTab("timetable")'};
+  }
+  
+  // Afternoon break
+  if(hr>=15&&hr<17){
+    return {icon:'🎮',text:'Czas na odpoczynek!',action:'() => switchTab("doodle")'};
+  }
+  
+  // Evening
+  if(hr>=17&&hr<19){
+    return {icon:'🍽️',text:'Kolacja! Sprawdź zakupy',action:'() => switchTab("shopping")'};
+  }
+  
+  // Night routine
+  if(hr>=20||hr<5){
+    return {icon:'😴',text:'Pora na sen',action:'() => null'};
+  }
+  
+  return {icon:'👋',text:'Witaj!',action:'() => null'};
+}
+let appStats={
+  startTime:Date.now(),
+  tabSwitches:0,
+  apiCalls:0,
+  errors:0,
+  touches:0
+};
+
+function trackAppEvent(eventType){
+  if(!appStats[eventType+'Count'])appStats[eventType+'Count']=0;
+  appStats[eventType+'Count']++;
+}
+
+function getAppStats(){
+  const runtime=Date.now()-appStats.startTime;
+  const uptime=Math.floor(runtime/1000);
+  const uptimeStr=`${Math.floor(uptime/3600)}h ${Math.floor((uptime%3600)/60)}m ${uptime%60}s`;
+  
+  return{
+    runtime:uptime,
+    uptimeStr,
+    tabSwitches:appStats.tabSwitches||0,
+    apiCalls:appStats.apiCalls||0,
+    errors:appStats.errors||0,
+    touches:appStats.touches||0
+  };
+}
+
+function renderAppStats(){
+  const el=document.getElementById('appStatsWidget');
+  if(!el)return;
+  
+  const stats=getAppStats();
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="background:var(--surface);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:var(--lime);">${stats.uptimeStr}</div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;">Czas pracy</div>
+      </div>
+      <div style="background:var(--surface);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:var(--blue);">${stats.apiCalls}</div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;">API Calls</div>
+      </div>
+      <div style="background:var(--surface);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:var(--pink);">${stats.touches}</div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;">Dotknięcia</div>
+      </div>
+      <div style="background:var(--surface);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:${stats.errors>0?'#ef4444':'#10b981'}'>${stats.errors}</div>
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;">Błędy</div>
+      </div>
+    </div>
+  `;
+}
+// FAMILY_MEMBERS is now derived from privateConfig at call time.
+// Emoji mapping is shared across all children.
+const PRESENCE_EMOJIS={home:'🏠',away:'🚗',school:'📚',sleep:'😴'};
+function getFamilyMembers(){
+  return getChildren().map(c=>({name:c.name,age_born:c.yearBorn||0,emojis:PRESENCE_EMOJIS}));
+}
+
+function updatePresenceStatus(member,status){
+  // status: 'home', 'away', 'school', 'sleep'
+  const data=safeLoad('familyPresence',{});
+  data[member]={status,timestamp:Date.now()};
+  safeSave('familyPresence',data);
+  renderPresenceWidget();
+}
+
+function getPresenceStatus(member){
+  const data=safeLoad('familyPresence',{});
+  return data[member]?.status||'unknown';
+}
+
+function renderPresenceWidget(){
+  const el=document.getElementById('presenceWidget');
+  if(!el)return;
+  
+  const data=safeLoad('familyPresence',{});
+  el.innerHTML=getFamilyMembers().map(m=>{
+    const status=data[m.name]?.status||'unknown';
+    const emoji=m.emojis[status]||'❓';
+    const statusLabel={home:'W domu',away:'Poza domem',school:'W szkole',sleep:'Śpi',unknown:'Nieznany'}[status]||'?';
+    return`<div style="padding:8px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <span style="font-size:24px;">${emoji}</span>
+      <div style="flex:1;">
+        <div style="font-weight:700;color:var(--text);font-size:13px;">${esc(m.name)}</div>
+        <div style="font-size:11px;color:var(--text-dim);">${statusLabel}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateDebugPanel(){
+  const info=getDebugInfo();
+  const el=document.getElementById('debugInfo');
+  if(el){
+    el.innerHTML=Object.entries(info).map(([k,v])=>`<div><strong>${k}:</strong> ${String(v).substring(0,100)}</div>`).join('');
+  }
+}
+const CACHE_VERSION=2;
+const CACHE_EXPIRY={
+  calEvents:600000,      // 10 min
+  googleTasks:600000,    // 10 min
+  weather:600000,        // 10 min
+  airQuality:1800000     // 30 min
+};
+
+function getCachedData(key){
+  const cached=safeLoad(key+'_cache',{});
+  if(cached.data&&cached.timestamp&&Date.now()-cached.timestamp<(CACHE_EXPIRY[key]||600000)){
+    console.log(`Cache hit for ${key}`);
+    return cached.data;
+  }
+  return null;
+}
+
+function setCachedData(key,data){
+  safeSave(key+'_cache',{data,timestamp:Date.now()});
+}
+
+function clearExpiredCache(){
+  const cacheKeys=Object.keys(CACHE_EXPIRY);
+  cacheKeys.forEach(key=>{
+    const cached=safeLoad(key+'_cache',{});
+    if(cached.timestamp&&Date.now()-cached.timestamp>CACHE_EXPIRY[key]){
+      localStorage.removeItem(key+'_cache');
+    }
+  });
+}
+function showToast(msg,type='info',duration=4000){
+  const el=document.createElement('div');
+  el.style.cssText=`
+    position:fixed;bottom:20px;right:20px;z-index:9998;
+    background:${type==='success'?'#10b981':type==='error'?'#ef4444':'#3b82f6'};
+    color:#fff;padding:12px 20px;border-radius:8px;
+    font-size:14px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);
+    animation:slideIn 0.3s ease-out;
+  `;
+  el.textContent=msg;
+  document.body.appendChild(el);
+  if(duration)setTimeout(()=>el.remove(),duration);
+  return el;
+}
+
+// Add animation for toast
+const style=document.createElement('style');
+style.textContent=`
+  @keyframes slideIn{
+    from{transform:translateX(400px);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+`;
+document.head.appendChild(style);
+let isOnline=navigator.onLine;
+
+window.addEventListener('online',()=>{
+  isOnline=true;
+  console.log('Connection restored');
+  if(isSignedIn)Promise.all([fetchCalEvents(),loadTaskLists()]).catch(e=>console.warn('Sync on reconnect failed',e));
+  updateOfflineIndicator();
+});
+
+window.addEventListener('offline',()=>{
+  isOnline=false;
+  console.log('Connection lost - offline mode');
+  updateOfflineIndicator();
+});
+
+function updateOfflineIndicator(){
+  const dot=document.getElementById('statusOnline');
+  const text=document.getElementById('statusText');
+  if(isOnline){
+    if(dot)dot.style.background='#10b981';
+    if(text)text.textContent=isSignedIn?'Online • Zalogowano':'Online';
+  }else{
+    if(dot)dot.style.background='#ef4444';
+    if(text)text.textContent='Offline – dane cache';
+  }
+}
+
+/* === DEPLOYMENT / UPDATES ===
+ * App is served from a local HTTP server on the family's Android phone (Termux).
+ * Termux cron pulls from GitHub every 5 min, rewriting this file; the server's
+ * Last-Modified header then reflects the pull time. We check *that*, not GitHub —
+ * the phone does the GitHub talking. No CDN / api.github.com dependency here.
+ * Optional: Termux can write /version.json next to this file with commit info
+ * for a richer tooltip. If absent, we fall back to document.lastModified silently.
+ */
+function formatRelativeTimePL(date){
+  if(!date||isNaN(date))return'-';
+  const diffMs=Date.now()-date.getTime();
+  if(diffMs<0)return'za chwilę';
+  const s=Math.floor(diffMs/1000);
+  const m=Math.floor(s/60);
+  const h=Math.floor(m/60);
+  const d=Math.floor(h/24);
+  if(s<30)return'przed chwilą';
+  if(m<1)return s+' s temu';
+  if(m<60)return m+' min temu';
+  if(h<24)return h+' godz. temu';
+  if(d===1)return'wczoraj';
+  if(d<7)return d+' dni temu';
+  return date.toLocaleDateString('pl-PL');
+}
+
+function getLastUpdatedDate(){
+  // document.lastModified reflects the server's Last-Modified header,
+  // which on the Termux-hosted phone = when `git pull` last rewrote the file.
+  const lm=document.lastModified;
+  if(lm){const d=new Date(lm);if(!isNaN(d))return d;}
+  return null;
+}
+
+function renderVersionDisplay(date,tooltip){
+  const el=document.getElementById('versionDisplay');
+  if(!el)return;
+  el.textContent='Zaktualizowano: '+formatRelativeTimePL(date);
+  if(tooltip)el.title=tooltip;
+  else if(date)el.title='Plik zaktualizowany: '+date.toLocaleString('pl-PL');
+}
+
+function updateVersionDisplay(){
+  const d=getLastUpdatedDate();
+  renderVersionDisplay(d);
+  // Silently try to enrich from ./version.json if Termux writes one after pull.
+  fetch('./version.json',{cache:'no-store'})
+    .then(r=>r.ok?r.json():null)
+    .then(v=>{
+      if(!v)return;
+      const rawDate=v.date||v.commitDate||v.updatedAt||v.pulledAt;
+      const sd=rawDate?new Date(rawDate):null;
+      if(!sd||isNaN(sd))return;
+      let tip='Serwer: '+sd.toLocaleString('pl-PL');
+      if(v.commit)tip+='\nCommit: '+esc(String(v.commit).substring(0,8));
+      if(v.message)tip+='\n'+esc(String(v.message).substring(0,80));
+      renderVersionDisplay(sd,tip);
+    })
+    .catch(()=>{}); // silent — version.json is optional
+}
+
+// Keep relative time fresh without touching the DOM if unchanged
+setInterval(()=>{
+  const el=document.getElementById('versionDisplay');
+  if(!el)return;
+  const d=getLastUpdatedDate();
+  if(!d)return;
+  const txt='Zaktualizowano: '+formatRelativeTimePL(d);
+  if(el.textContent!==txt)el.textContent=txt;
+},60000);
+
+async function manualGitHubUpdate(){
+  const btn=document.getElementById('navRefreshBtn');
+  const lbl=btn?btn.querySelector('span:last-child'):null;
+  const original=lbl?lbl.textContent:'Aktualizuj';
+  if(lbl)lbl.textContent='Sprawdzam…';
+  if(btn)btn.disabled=true;
+
+  // ── Step 1: Try to trigger an immediate git pull via Termux update endpoint ──
+  // The endpoint (port 8081) is a tiny Python server in start-etiudyos.sh.
+  // If unreachable (Termux not running, or old setup without the endpoint),
+  // we fall through silently to the Last-Modified check below.
+  let pullTriggered=false;
+  try{
+    if(lbl)lbl.textContent='Pobieram…';
+    const pullRes=await fetch('http://127.0.0.1:8081/update',{
+      method:'POST',
+      cache:'no-store',
+      signal:AbortSignal.timeout(10000) // git pull can take a few seconds
+    });
+    if(pullRes.ok){
+      const data=await pullRes.json().catch(()=>({}));
+      pullTriggered=true;
+      if(data.changed===false){
+        // GitHub had nothing new — no reload needed
+        showToast('Brak zmian na GitHub ✓','info',2500);
+        updateVersionDisplay();
+        return;
+      }
+      // data.changed===true: Termux pulled something new, fall through to reload
+      showToast('Pobrano nową wersję — przeładowuję…','success',1500);
+      setTimeout(()=>location.reload(),600);
+      return;
+    }
+  }catch(e){
+    // Endpoint unreachable — not an error worth showing, just fall through
+    console.info('Update endpoint not available, falling back to Last-Modified check');
+  }
+
+  // ── Step 2: Fallback — check if Termux server already has a newer file ──
+  // (covers the case where the 5-min cron pulled something since page load,
+  //  or the endpoint above isn't set up yet)
+  if(lbl)lbl.textContent='Sprawdzam…';
+  try{
+    const url=location.pathname+'?t='+Date.now();
+    const res=await fetch(url,{method:'HEAD',cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const serverLM=res.headers.get('Last-Modified');
+    const localD=new Date(document.lastModified);
+    const serverD=serverLM?new Date(serverLM):null;
+    const newer=serverD&&!isNaN(serverD)&&!isNaN(localD)&&serverD.getTime()>localD.getTime()+1000;
+    if(newer){
+      showToast('Nowa wersja — przeładowuję…','success',1500);
+      setTimeout(()=>location.reload(),500);
+      return;
+    }
+    if(!serverLM){
+      showToast('Przeładowuję…','info',1200);
+      setTimeout(()=>location.reload(),400);
+      return;
+    }
+    showToast('Wszystko aktualne ✓','info',2500);
+    updateVersionDisplay();
+  }catch(e){
+    console.warn('Update check failed:',e);
+    showToast('Serwer niedostępny – spróbuj ponownie później','error',3500);
+  }finally{
+    if(lbl)lbl.textContent=original;
+    if(btn)btn.disabled=false;
+  }
+}
+// VISUAL DIAGNOSTICS VERSION
+// MINIMAL FIX: Just skip Discovery API, use token directly
+// This is inserted at line ~1713
+
+const OAUTH_SCOPES=['https://www.googleapis.com/auth/calendar.readonly','https://www.googleapis.com/auth/tasks.readonly','https://www.googleapis.com/auth/gmail.send'];
+
+let gapiReady=false,gisReady=false,tokenClient=null,isSignedIn=false;
+
+function gapiLoaded(){
+  console.log('✓ gapi script loaded');
+  if(typeof gapi!=='undefined'){
+    gapiReady=true;
+    if(gisReady) attemptAutoLogin();
+  }
+}
+
+function gisLoaded(){
+  console.log('✓ GIS script loaded');
+  if(typeof google!=='undefined'&&google.accounts){
+    gisReady=true;
+    if(gapiReady) attemptAutoLogin();
+  }
+}
+
+async function attemptAutoLogin(){
+  if(!gisReady||typeof google==='undefined')return;
+  try{
+    const lastToken=safeLoad('lastOAuthToken',null);
+    if(lastToken){
+      isSignedIn=true;
+      setGS('ok','Przywrócono logowanie');
+      console.log('✓ Auto-login successful');
+      await Promise.all([fetchCalEvents(),loadTaskLists()]);
+    }
+  }catch(e){
+    console.log('Auto-login not available',e);
+  }
+}
+
+function initTC(){
+  if(!gisReady||typeof google==='undefined'||!google.accounts){
+    console.warn('GIS not ready');
+    return false;
+  }
+  
+  const settings=safeLoad('appSettings',{});
+  const cfg=getPrivateConfig();
+  // Priority: appSettings (user override) → privateConfig (imported) → empty (blocks OAuth)
+  const clientId=(settings.googleClientId||cfg.googleClientId||'').trim();
+  if(!clientId){
+    console.warn('No Google Client ID configured — import private config or set in Settings');
+    setGS('err','Brak Client ID — zaimportuj config');
+    return false;
+  }
+  try{
+    tokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:OAUTH_SCOPES.join(' '),
+      callback:async resp=>{
+        if(resp.error){
+          console.warn('OAuth error:',resp.error);
+          setGS('err','OAuth: '+resp.error);
+          showToast('❌ '+resp.error,'error');
+          return;
+        }
+        isSignedIn=true;
+        safeSave('lastOAuthToken',resp.access_token);
+        setGS('ok','Zalogowano ✓');
+        showToast('✅ Zalogowano!','success');
+        console.log('✓ User signed in');
+        await Promise.all([fetchCalEvents(),loadTaskLists()]);
+      }
+    });
+    return true;
+  }catch(e){
+    console.error('initTC error:',e);
+    setGS('err','OAuth init error');
+    showToast('❌ '+e.message,'error');
+    return false;
+  }
+}
+
+async function googleSignIn(){
+  console.log('googleSignIn() - gapi:',gapiReady,'gis:',gisReady);
+  
+  if(!gapiReady||!gisReady){
+    showToast('⏳ Ładowanie Google...','info');
+    
+    // Wait up to 15 seconds
+    const start=Date.now();
+    while(!gapiReady||!gisReady){
+      if(Date.now()-start>15000){
+        showToast('❌ Timeout - Google scripts nie załadowały się','error');
+        return;
+      }
+      await new Promise(r=>setTimeout(r,200));
+    }
+  }
+  
+  if(!initTC()){
+    showToast('❌ Błąd inicjalizacji OAuth','error');
+    return;
+  }
+  
+  try{
+    tokenClient.requestAccessToken();
+  }catch(e){
+    console.error('Token request error:',e);
+    showToast('❌ '+e.message,'error');
+  }
+}
+
+function googleSignOut(){
+  if(tokenClient&&typeof google!=='undefined'){
+    google.accounts.id.revoke(safeLoad('lastOAuthToken',''),()=>{
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      setGS('','');
+      showToast('✅ Wylogowano','success');
+    });
+  }else{
+    isSignedIn=false;
+    safeSave('lastOAuthToken',null);
+    setGS('','');
+    showToast('✅ Wylogowano','success');
+  }
+}
+
+function setGS(type,msg){document.getElementById('gDot').className='g-dot'+(type?' '+type:'');document.getElementById('gStatusText').textContent=msg;}
+
+// ── Task Deadline Warnings ───────────────────────────────────────────────
+function checkTaskDeadlines(tasks){
+  const now=new Date();
+  const tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);
+  
+  const dueTomorrow=tasks.filter(t=>{
+    if(t.status==='completed'||!t.due)return false;
+    const dueDate=new Date(t.due);
+    return dueDate.toDateString()===tomorrow.toDateString();
+  });
+  
+  const overdue=tasks.filter(t=>{
+    if(t.status==='completed'||!t.due)return false;
+    const dueDate=new Date(t.due);
+    return dueDate<now;
+  });
+  
+  if(overdue.length){
+    const lastAlert=safeLoad('lastTaskAlert',{});
+    if(!lastAlert.overdue||Date.now()-lastAlert.overdue>3600000){
+      showToast(`⚠️ ${overdue.length} zaległy${overdue.length===1?'e':'ch'} zadań!`,'error');
+      safeSave('lastTaskAlert',{overdue:Date.now()});
+    }
+  }
+  
+  if(dueTomorrow.length){
+    const lastAlert=safeLoad('lastTaskAlert',{});
+    if(!lastAlert.dueTomorrow||Date.now()-lastAlert.dueTomorrow>86400000){
+      showToast(`📋 ${dueTomorrow.length} zadań jutro!`,'info');
+      safeSave('lastTaskAlert',{dueTomorrow:Date.now()});
+    }
+  }
+}
+async function addTask(){
+  if(!isSignedIn||!gapiReady){
+    setGS('err','Zaloguj się najpierw');
+    return;
+  }
+  const inp=document.getElementById('newTaskInput');
+  const title=inp?.value?.trim();
+  if(!title)return;
+  try{
+    await gapi.client.tasks.tasks.insert({
+      tasklist:document.getElementById('taskListSel').value,
+      resource:{title}
+    });
+    inp.value='';
+    loadTasks();
+  }catch(e){
+    console.warn('Task add failed',e);
+    setGS('err','Błąd dodawania zadania');
+  }
+}
+
+// ── Auto-sync Calendar & Tasks every 5 minutes ────────────────────────────
+let lastSyncTime=0;
+const SYNC_INTERVAL=300000; // 5 minutes
+
+function startAutoSync(){
+  setInterval(()=>{
+    if(isSignedIn&&gapiReady&&Date.now()-lastSyncTime>SYNC_INTERVAL){
+      console.log('Auto-syncing calendar and tasks...');
+      lastSyncTime=Date.now();
+      Promise.all([fetchCalEvents(),loadTaskLists()]).catch(e=>console.warn('Auto-sync failed',e));
+    }
+  },60000); // Check every minute
+}
+
+/* === SHOPPING === */
+let shopFilter='Wszystkie';
+function setShopFilter(cat){shopFilter=cat;document.querySelectorAll('.cat-chip').forEach(c=>c.classList.toggle('active',c.dataset.cat===cat));renderShop();}
+function addShopItem(){const inp=document.getElementById('shopInput');const name=inp.value.trim();if(!name)return;const items=safeLoad('shopping',[]);items.push({id:Date.now(),name,category:document.getElementById('shopCatSel').value,done:false});safeSave('shopping',items);inp.value='';renderShop();updateStats();}
+function toggleShop(id){const items=safeLoad('shopping',[]);const i=items.findIndex(x=>x.id===id);if(i!==-1){items[i].done=!items[i].done;safeSave('shopping',items);}renderShop();updateStats();}
+function deleteShop(id){safeSave('shopping',safeLoad('shopping',[]).filter(x=>x.id!==id));renderShop();updateStats();}
+function clearDoneShop(){safeSave('shopping',safeLoad('shopping',[]).filter(x=>!x.done));renderShop();updateStats();}
+function clearAllShop(){if(!confirm('Wyczyścić całą listę zakupów?'))return;safeSave('shopping',[]);renderShop();updateStats();}
+function renderShop(){
+  let items=safeLoad('shopping',[]);
+  if(shopFilter!=='Wszystkie')items=items.filter(x=>x.category===shopFilter);
+  const all=[...items.filter(x=>!x.done),...items.filter(x=>x.done)];
+  document.getElementById('shopList').innerHTML=all.length?all.map(x=>`<div class="shop-item${x.done?' done':''}"><div class="shop-check" onclick="toggleShop(${x.id})">${x.done?'✓':''}</div><span class="shop-name">${esc(x.name)}</span><span class="shop-cat-badge">${esc(x.category)}</span><button class="shop-del" onclick="deleteShop(${x.id})">×</button></div>`).join(''):`<div class="empty-state"><span class="ei">🛒</span>Lista pusta</div>`;
+}
+
+/* === CHORES === */
+let choreFilter='Wszyscy';
+function setChoreFilter(who){choreFilter=who;document.querySelectorAll('.filter-chip').forEach(c=>c.classList.toggle('active',c.dataset.who===who));renderChores();}
+function addChore(){const inp=document.getElementById('choreInput');const name=inp.value.trim();if(!name)return;const chores=safeLoad('chores',[]);chores.push({id:Date.now(),name,who:document.getElementById('choreWhoSel').value,done:false});safeSave('chores',chores);inp.value='';renderChores();updateStats();}
+function toggleChore(id){const c=safeLoad('chores',[]);const i=c.findIndex(x=>x.id===id);if(i!==-1){c[i].done=!c[i].done;safeSave('chores',c);}renderChores();updateStats();}
+function deleteChore(id){safeSave('chores',safeLoad('chores',[]).filter(c=>c.id!==id));renderChores();updateStats();}
+function resetChores(){safeSave('chores',safeLoad('chores',[]).map(c=>({...c,done:false})));renderChores();updateStats();}
+function autoResetMon(){const now=new Date();if(now.getDay()!==1)return;const k=`cr_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}`;if(safeLoad(k,false))return;resetChores();safeSave(k,true);}
+function renderChores(){
+  let c=safeLoad('chores',[]);if(choreFilter!=='Wszyscy')c=c.filter(x=>x.who===choreFilter);
+  const all=[...c.filter(x=>!x.done),...c.filter(x=>x.done)];
+  const kids=getChildren();
+  document.getElementById('choreList').innerHTML=all.length?all.map(x=>{
+    const slot=(x.who===kids[0].name)?'child-1':((x.who===kids[1].name)?'child-2':'wszyscy');
+    return`<div class="chore-item${x.done?' done':''}"><div class="chore-check" onclick="toggleChore(${x.id})">${x.done?'✓':''}</div><span class="chore-name">${esc(x.name)}</span><span class="chore-who ${slot}">${esc(x.who)}</span><button class="chore-del" onclick="deleteChore(${x.id})">×</button></div>`;
+  }).join(''):`<div class="empty-state"><span class="ei">🧹</span>Brak obowiązków</div>`;
+}
+
+/* === TIMETABLE MIGRATION ===
+ * Private timetables are no longer hardcoded in source. They come from the imported
+ * private config, or are typed in manually. This function only handles a one-time
+ * migration from the legacy tt_helena_X and tt_mania_X keys (present on existing
+ * tablets from earlier builds) to the new generic tt_c1_X and tt_c2_X schema.
+ */
+function migrateLegacyTimetable(){
+  const VER='tt_migration_v2';
+  if(safeLoad(VER,false))return;
+  const legacyMap={helena:'c1',mania:'c2'};
+  let migrated=false;
+  Object.entries(legacyMap).forEach(([oldId,newId])=>{
+    for(let di=0;di<5;di++){
+      for(let pi=0;pi<11;pi++){
+        const oldK=`tt_${oldId}_${di}_${pi}`;
+        const newK=`tt_${newId}_${di}_${pi}`;
+        const v=safeLoad(oldK,null);
+        if(v&&!safeLoad(newK,null)){safeSave(newK,v);migrated=true;}
+        localStorage.removeItem(oldK);
+      }
+    }
+  });
+  safeSave(VER,true);
+  if(migrated)console.info('Migrated legacy timetable keys to c1/c2 schema');
+}
+
+/* === TIMETABLE === */
+let ttStudent='c1';
+function setTTStudent(who){ttStudent=who;document.querySelectorAll('.tt-tab-btn').forEach((b,i)=>b.classList.toggle('active',['c1','c2'][i]===who));renderTimetable();}
+function renderTimetable(){
+  const now=new Date(),dow=now.getDay(),colT=dow>=1&&dow<=5?dow-1:-1,cur=now.getHours()*60+now.getMinutes();
+  let curP=-1;TT_TIMES.forEach(([s,e],i)=>{const[sh,sm]=s.split(':').map(Number);const[eh,em]=e.split(':').map(Number);if(cur>=sh*60+sm&&cur<=eh*60+em)curP=i;});
+  let html='<div class="tt-head"></div>';
+  TT_DAYS.forEach((d,i)=>{html+=`<div class="tt-head${i===colT?' today-head':''}">${d}</div>`;});
+  TT_TIMES.forEach(([s,e],pi)=>{
+    html+=`<div class="tt-time"><div class="tt-period">${pi+1}</div><div class="tt-slot">${s}<br>${e}</div></div>`;
+    for(let di=0;di<5;di++){
+      const k=`tt_${ttStudent}_${di}_${pi}`,subj=safeLoad(k,'');
+      const active=di===colT&&pi===curP,tday=di===colT;
+      html+=`<div class="tt-cell${active?' active-lesson':''}${tday&&!active?' today-col':''}${!subj?' empty-cell':''}" contenteditable="false" onclick="editTTCell(this,'${k}')">${esc(subj)}</div>`;
+    }
+  });
+  document.getElementById('ttGrid').innerHTML=html;
+}
+function editTTCell(el,key){
+  if(el.contentEditable==='true')return;
+  el.contentEditable='true';el.focus();
+  const r=document.createRange();r.selectNodeContents(el);r.collapse(false);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+  const save=()=>{el.contentEditable='false';safeSave(key,el.textContent.trim());el.classList.toggle('empty-cell',!el.textContent.trim());el.removeEventListener('blur',save);el.removeEventListener('keydown',kd);};
+  const kd=e=>{if(e.key==='Enter'){e.preventDefault();save();}if(e.key==='Escape'){el.contentEditable='false';el.removeEventListener('blur',save);el.removeEventListener('keydown',kd);renderTimetable();}};
+  el.addEventListener('blur',save);el.addEventListener('keydown',kd);
+}
+
+/* === CAMERAS === */
+function renderCameras(){
+  const cams=(safeLoad('appSettings',{}).cameras||[]);
+  const grid=document.getElementById('cameraGrid');
+  if(!cams.length||!cams.some(c=>c.url)){grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><span class="ei">📷</span>Skonfiguruj kamery w Ustawieniach</div>`;return;}
+  grid.innerHTML=cams.filter(c=>c.url).map(c=>{
+    if(!isSafeUrl(c.url))return`<div class="cam-card"><div class="cam-placeholder"><span style="font-size:36px;">⚠️</span>Nieprawidłowy URL</div></div>`;
+    return`<div class="cam-card"><iframe src="${esc(c.url)}" allowfullscreen sandbox="allow-same-origin allow-scripts"></iframe><div class="cam-label">${esc(c.name||'Kamera')}</div></div>`;
+  }).join('');
+}
+
+/* === DOODLE === */
+let dInited=false,dCtx,isDrawing=false,lX=0,lY=0,dTool='pen';
+function initDoodle(){
+  const canvas=document.getElementById('doodleCanvas');if(!canvas)return;
+  const p=document.getElementById('tab-doodle');
+  if(!dInited){canvas.width=p.clientWidth-40;canvas.height=Math.max(380,window.innerHeight-220);dCtx=canvas.getContext('2d');dCtx.fillStyle='#fff';dCtx.fillRect(0,0,canvas.width,canvas.height);dInited=true;canvas.addEventListener('pointerdown',dS);canvas.addEventListener('pointermove',dM);canvas.addEventListener('pointerup',dE);canvas.addEventListener('pointercancel',dE);}
+  updTool();
+}
+function dS(e){isDrawing=true;const r=e.target.getBoundingClientRect();lX=e.clientX-r.left;lY=e.clientY-r.top;e.target.setPointerCapture(e.pointerId);}
+function dM(e){if(!isDrawing)return;const r=e.target.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;dCtx.beginPath();dCtx.moveTo(lX,lY);dCtx.lineTo(x,y);dCtx.stroke();lX=x;lY=y;}
+function dE(){isDrawing=false;}
+function setTool(t){dTool=t;document.getElementById('toolPen').classList.toggle('active-tool',t==='pen');document.getElementById('toolEraser').classList.toggle('active-tool',t==='eraser');updTool();}
+function updTool(){if(!dCtx)return;const sz=Number(document.getElementById('brushSize').value);if(dTool==='eraser'){dCtx.globalCompositeOperation='destination-out';dCtx.strokeStyle='rgba(0,0,0,1)';dCtx.lineWidth=sz*4;}else{dCtx.globalCompositeOperation='source-over';dCtx.strokeStyle=document.getElementById('brushColor').value;dCtx.lineWidth=sz;}dCtx.lineCap='round';dCtx.lineJoin='round';}
+function clearDoodle(){if(!dCtx)return;const c=document.getElementById('doodleCanvas');dCtx.globalCompositeOperation='source-over';dCtx.fillStyle='#fff';dCtx.fillRect(0,0,c.width,c.height);updTool();}
+function saveDoodle(){const l=document.createElement('a');l.download='rysunek.png';l.href=document.getElementById('doodleCanvas').toDataURL();l.click();}
+
+/* === SETTINGS === */
+function saveSettings(){const s=safeLoad('appSettings',{});s.googleClientId=(document.getElementById('gClientId')?.value||'').trim();s.kioskEmail=(document.getElementById('kioskEmail')?.value||'').trim();s.geminiApiKey=(document.getElementById('geminiApiKey')?.value||'').trim();s.cameras=Array.from(document.querySelectorAll('.cam-row')).map(r=>({name:r.querySelector('.cam-name-inp')?.value?.trim()||'',url:r.querySelector('.cam-url-inp')?.value?.trim()||''}));safeSave('appSettings',s);renderCameras();}
+function renderSettings(){
+  const s=safeLoad('appSettings',{});
+  const g=document.getElementById('gClientId');if(g)g.value=s.googleClientId||'';
+  const gak=document.getElementById('geminiApiKey');if(gak)gak.value=s.geminiApiKey||'';
+  const ke=document.getElementById('kioskEmail');if(ke)ke.value=s.kioskEmail||'';
+  const cams=s.cameras||[{name:'',url:''},{name:'',url:''}];
+  document.getElementById('camInputs').innerHTML=cams.map((c,i)=>`<div class="cam-row" style="margin-bottom:12px;"><div class="fgroup"><label class="flbl">Kamera ${i+1} – Nazwa</label><input class="finput cam-name-inp" value="${esc(c.name)}" placeholder="np. Wejście" oninput="saveSettings()"></div><div class="fgroup"><label class="flbl">Kamera ${i+1} – URL</label><input class="finput cam-url-inp" value="${esc(c.url)}" placeholder="https://…" oninput="saveSettings()"></div></div>`).join('');
+  renderBDList();
+  renderKioskStats();
+  renderImportantDatesList();
+  renderPrivateConfigStatus();
+  const d=document.getElementById('bdDayInput');if(d&&d.children.length<=1)for(let i=1;i<=31;i++)d.innerHTML+=`<option value="${i}">${i}</option>`;
+  const d2=document.getElementById('idDayInput');if(d2&&d2.children.length<=1)for(let i=1;i<=31;i++)d2.innerHTML+=`<option value="${i}">${i}</option>`;
+}
+function addCamSlot(){const s=safeLoad('appSettings',{});s.cameras=s.cameras||[];s.cameras.push({name:'',url:''});safeSave('appSettings',s);renderSettings();}
+
+/* === BIRTHDAYS === */
+function addBirthday(){const name=document.getElementById('bdNameInput').value.trim();const day=Number(document.getElementById('bdDayInput').value);const month=Number(document.getElementById('bdMonthInput').value);if(!name||!day||!month){alert('Wypełnij imię, dzień i miesiąc!');return;}const bds=safeLoad('birthdays',getDfltBD());bds.push({name,day,month});safeSave('birthdays',bds);document.getElementById('bdNameInput').value='';document.getElementById('bdDayInput').value='';document.getElementById('bdMonthInput').value='';renderBDList();}
+function deleteBirthday(i){const bds=safeLoad('birthdays',getDfltBD());bds.splice(i,1);safeSave('birthdays',bds);renderBDList();}
+function renderBDList(){
+  const bds=safeLoad('birthdays',getDfltBD()),el=document.getElementById('bdList');if(!el)return;
+  el.innerHTML=bds.length?bds.map((b,i)=>{const hd=b.day&&b.month;const ds=hd?`${b.day} ${MONTHS_GEN[b.month-1]}`:'⚠️ data nieskonfigurowana';return`<div class="bd-row"><span class="bd-who">🎂 ${esc(b.name)}</span><span class="bd-date-txt">${esc(ds)}</span><button class="bd-del" onclick="deleteBirthday(${i})">×</button></div>`;}).join(''):`<div class="empty-state" style="padding:14px;"><span class="ei">🎂</span>Brak urodzin</div>`;
+}
+
+/* === GEMINI ASSISTANT === */
+const GEMINI_SYSTEM_PROMPT = `Jesteś przyjaznym asystentem dla dzieci w wieku 9–12 lat. Zawsze odpowiadaj po polsku, krótko i zrozumiale. Możesz pomagać z zadaniami domowymi, ciekawostkami przyrodniczymi, historią, matematyką, językami i innymi tematami edukacyjnymi. Bądź ciepły, zachęcający i pozytywny. Absolutnie nie wolno Ci: używać wulgaryzmów ani przekleństw, omawiać treści dla dorosłych, przemocy, narkotyków, alkoholu, polityki ani religii w sposób kontrowersyjny, podawać danych osobowych ani kontaktów, rozmawiać o niebezpiecznych czynnościach. Jeśli pytanie jest nieodpowiednie, grzecznie odmów i zaproponuj inny temat. Zawsze kończ odpowiedź zachęcająco.`;
+
+let geminiHistory = [];
+let geminiRecognition = null;
+let geminiMicActive = false;
+
+function geminiOnOpen() {
+  const key = (safeLoad('appSettings',{}).geminiApiKey||'').trim();
+  const st = document.getElementById('geminiStatus');
+  if(st) st.textContent = key ? '🟢 Klucz aktywny' : '🔴 Brak klucza API';
+  // Auto-start voice immediately when tab opens
+  if(key) {
+    setTimeout(() => startVoiceCommand(), 300);
+  }
+}
+
+function geminiAddMsg(role, text, thinking) {
+  const wrap = document.getElementById('geminiMessages');
+  if(!wrap) return null;
+  const div = document.createElement('div');
+  div.className = 'gem-msg gem-msg-' + (role==='user' ? 'user' : 'ai');
+  const bubble = document.createElement('div');
+  bubble.className = 'gem-bubble gem-bubble-' + (role==='user' ? 'user' : 'ai') + (thinking ? ' gem-thinking' : '');
+  bubble.textContent = text;
+  div.appendChild(bubble);
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return bubble;
+}
+
+async function geminiSend() {
+  const input = document.getElementById('geminiInput');
+  const text = (input?.value||'').trim();
+  if(!text) return;
+  input.value = '';
+  const key = (safeLoad('appSettings',{}).geminiApiKey||'').trim();
+  if(!key) {
+    geminiAddMsg('ai', '⚠️ Brak klucza API Gemini. Dodaj go w Ustawieniach → Asystent Gemini.');
+    return;
+  }
+  geminiAddMsg('user', text);
+  geminiHistory.push({ role:'user', parts:[{ text }] });
+  const thinkBubble = geminiAddMsg('ai', 'Myślę…', true);
+  try {
+    const body = {
+      system_instruction: { parts:[{ text: GEMINI_SYSTEM_PROMPT }] },
+      contents: geminiHistory,
+      generationConfig: { temperature:0.7, maxOutputTokens:512 }
+    };
+    const resp = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key),
+      { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }
+    );
+    const data = await resp.json();
+    if(data.error) throw new Error(data.error.message||'Błąd API');
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Przepraszam, nie rozumiem. Spróbuj jeszcze raz!';
+    if(thinkBubble){ thinkBubble.textContent = reply; thinkBubble.classList.remove('gem-thinking'); }
+    geminiHistory.push({ role:'model', parts:[{ text: reply }] });
+    geminiSpeak(reply);
+  } catch(e) {
+    if(thinkBubble){ thinkBubble.textContent = '⚠️ Błąd: ' + (e.message||'Problem z połączeniem.'); thinkBubble.classList.remove('gem-thinking'); }
+  }
+}
+
+function geminiSpeak(text) {
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'pl-PL';
+  utt.rate = 0.95;
+  utt.pitch = 1.05;
+  const voices = window.speechSynthesis.getVoices();
+  const plVoice = voices.find(v => v.lang && v.lang.startsWith('pl'));
+  if(plVoice) utt.voice = plVoice;
+  window.speechSynthesis.speak(utt);
+}
+
+function geminiToggleMic() {
+  if(geminiMicActive) { geminiStopMic(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) { alert('Twoja przeglądarka nie obsługuje rozpoznawania mowy.'); return; }
+  geminiRecognition = new SR();
+  geminiRecognition.lang = 'pl-PL';
+  geminiRecognition.interimResults = false;
+  geminiRecognition.maxAlternatives = 1;
+  geminiRecognition.onstart = () => {
+    geminiMicActive = true;
+    const btn = document.getElementById('geminiMicBtn');
+    if(btn){ btn.textContent='⏹️'; btn.classList.add('gem-mic-active'); }
+  };
+  geminiRecognition.onresult = e => {
+    const transcript = e.results[0][0].transcript;
+    const inp = document.getElementById('geminiInput');
+    if(inp) inp.value = transcript;
+    geminiStopMic();
+    geminiSend();
+  };
+  geminiRecognition.onerror = () => geminiStopMic();
+  geminiRecognition.onend = () => geminiStopMic();
+  geminiRecognition.start();
+}
+
+function geminiStopMic() {
+  geminiMicActive = false;
+  if(geminiRecognition){ try{ geminiRecognition.stop(); }catch(ex){} geminiRecognition=null; }
+  const btn = document.getElementById('geminiMicBtn');
+  if(btn){ btn.textContent='🎤'; btn.classList.remove('gem-mic-active'); }
+}
+
+
+/* === INACTIVITY AUTO-HOME (3 min) === */
+let _inactivityTimer = null;
+const INACTIVITY_MS = 3 * 60 * 1000; // 3 minutes
+
+function resetInactivityTimer() {
+  clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(() => {
+    if(activeTab !== 'home') {
+      // Stop mic/speech if Gemini was open
+      if(activeTab === 'gemini') {
+        geminiStopMic();
+        if(window.speechSynthesis) window.speechSynthesis.cancel();
+      }
+      switchTab('home');
+    }
+  }, INACTIVITY_MS);
+}
+
+/* === NIGHT MODE === */
+let _nightActive=null; // null = unset, true/false = current state
+function applyNightMode(){
+  const h=new Date().getHours();
+  const shouldBeNight=(h>=23||h<6);
+  if(shouldBeNight===_nightActive)return; // no change
+  _nightActive=shouldBeNight;
+  document.body.classList.toggle('night-mode',shouldBeNight);
+}
+
+/* === KIOSK TRACKER === */
+// ── IndexedDB helpers ──────────────────────────────────────────────────────
+function openIDB(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open('PulpitFotos',1);
+    req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains('photos'))db.createObjectStore('photos',{keyPath:'id',autoIncrement:true});};
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function savePhotoToIDB(blob){
+  try{
+    const db=await openIDB();
+    const dateStr=todayStr();
+    await new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').add({blob,date:dateStr,ts:Date.now()});tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});
+  }catch(e){console.warn('IDB save failed',e);}
+}
+async function getPhotosForDate(dateStr){
+  try{
+    const db=await openIDB();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('photos','readonly');
+      const req=tx.objectStore('photos').getAll();
+      req.onsuccess=()=>res((req.result||[]).filter(p=>p.date===dateStr));
+      req.onerror=()=>rej(req.error);
+    });
+  }catch{return [];}
+}
+async function countPhotosForDate(dateStr){return(await getPhotosForDate(dateStr)).length;}
+async function deletePhotosForDate(dateStr){
+  try{
+    const db=await openIDB();
+    const all=await getPhotosForDate(dateStr);
+    const tx=db.transaction('photos','readwrite');
+    for(const p of all)tx.objectStore('photos').delete(p.id);
+    await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});
+  }catch{}
+}
+
+// ── Date helpers ───────────────────────────────────────────────────────────
+function todayStr(){const n=new Date();return`${n.getFullYear()}-${n.getMonth()+1}-${n.getDate()}`;}
+function yesterdayStr(){const n=new Date();n.setDate(n.getDate()-1);return`${n.getFullYear()}-${n.getMonth()+1}-${n.getDate()}`;}
+function touchKey(dateStr){return`touchCount_${dateStr}`;}
+function getTouches(dateStr){return safeLoad(touchKey(dateStr),0);}
+
+// ── Touch counting ─────────────────────────────────────────────────────────
+function incrementTouchCounter(){
+  const k=touchKey(todayStr());
+  safeSave(k,safeLoad(k,0)+1);
+  updateKioskBadge();
+}
+
+// ── Camera init ────────────────────────────────────────────────────────────
+let _camReady=false,_lastPhotoTs=0;
+const PHOTO_COOLDOWN=2*60*1000; // 2 minutes
+
+async function initKioskCamera(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+    const vid=document.getElementById('kioskCam');
+    vid.srcObject=stream;
+    await vid.play().catch(()=>{});
+    _camReady=true;
+    console.log('Kiosk camera ready');
+  }catch(e){
+    console.warn('Kiosk camera unavailable:',e.message);
+  }
+}
+
+async function maybeTakePhoto(){
+  if(!_camReady)return;
+  const now=Date.now();
+  if(now-_lastPhotoTs<PHOTO_COOLDOWN)return;
+  _lastPhotoTs=now;
+  try{
+    const vid=document.getElementById('kioskCam');
+    const canvas=document.getElementById('kioskCanvas');
+    canvas.width=vid.videoWidth||640;
+    canvas.height=vid.videoHeight||480;
+    canvas.getContext('2d').drawImage(vid,0,0);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.82));
+    if(blob&&blob.size>1000){
+      await savePhotoToIDB(blob);
+      // brief screen flash to confirm
+      const fl=document.createElement('div');fl.className='kiosk-flash';document.body.appendChild(fl);setTimeout(()=>fl.remove(),300);
+      updateKioskBadge();
+    }
+  }catch(e){console.warn('Photo capture failed',e);}
+}
+
+// ── Touch handler ──────────────────────────────────────────────────────────
+const TOUCH_SELECTOR='button,a,[onclick],input,select,.cal-day,.task-item,.shop-item,.chore-item,.chore-check,.shop-check,.task-check,.tt-cell,.nav-btn,.cat-chip,.filter-chip,.tool-btn,.bd-del,.shop-del,.chore-del,.cal-nav,.add-btn,.btn';
+
+function onKioskInteraction(e){
+  if(!e.target.closest(TOUCH_SELECTOR))return;
+  incrementTouchCounter();
+  maybeTakePhoto();
+}
+
+// ── Badge update ───────────────────────────────────────────────────────────
+async function updateKioskBadge(){
+  const touches=getTouches(todayStr());
+  const photos=await countPhotosForDate(todayStr());
+  const el=document.getElementById('kioskBadge');
+  if(el)el.textContent=`📸 ${photos} · 👆 ${touches}`;
+}
+
+// ── ZIP download ───────────────────────────────────────────────────────────
+async function downloadPhotosZip(when){
+  const dateStr=when==='yesterday'?yesterdayStr():todayStr();
+  const photos=await getPhotosForDate(dateStr);
+  if(!photos.length){alert(`Brak zdjęć dla: ${dateStr}`);return;}
+  if(typeof JSZip==='undefined'){alert('JSZip nie załadowany – sprawdź połączenie.');return;}
+  const zip=new JSZip();
+  photos.forEach((p,i)=>{
+    const pad=n=>String(n).padStart(3,'0');
+    const t=new Date(p.ts);
+    const name=`foto_${dateStr}_${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}_${pad(i+1)}.jpg`;
+    zip.file(name,p.blob);
+  });
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`pulpit_zdjecia_${dateStr}.zip`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+// ── Gmail daily summary ────────────────────────────────────────────────────
+
+// ── Daily operations check (runs every second via updateClock) ─────────────
+function checkDailyOperations(){
+  const now=new Date();
+  if(now.getHours()===7&&now.getMinutes()===0&&now.getSeconds()<5){
+    const k=`dailyOp_${todayStr()}`;
+    if(!safeLoad(k,false)){
+      safeSave(k,true);
+      // slight delay so clock settles
+      setTimeout(async()=>{
+        await sendDailySummaryEmail(false);
+        await downloadPhotosZip('yesterday');
+        await deletePhotosForDate(yesterdayStr()); // cleanup after download
+      },2000);
+    }
+  }
+}
+
+// ── Kiosk stats for settings panel ────────────────────────────────────────
+async function renderKioskStats(){
+  const el=document.getElementById('kioskStats');if(!el)return;
+  const t=todayStr(),y=yesterdayStr();
+  const tToday=getTouches(t),tYest=getTouches(y);
+  const pToday=await countPhotosForDate(t),pYest=await countPhotosForDate(y);
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div style="background:#fff;border-radius:10px;padding:10px 12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Dziś – dotknięcia</div><div style="font-size:24px;font-weight:800;color:var(--dark);">${tToday}</div></div>
+    <div style="background:#fff;border-radius:10px;padding:10px 12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Dziś – zdjęcia</div><div style="font-size:24px;font-weight:800;color:var(--dark);">${pToday}</div></div>
+    <div style="background:#fff;border-radius:10px;padding:10px 12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Wczoraj – dotknięcia</div><div style="font-size:24px;font-weight:800;color:var(--text-dim);">${tYest}</div></div>
+    <div style="background:#fff;border-radius:10px;padding:10px 12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:4px;">Wczoraj – zdjęcia</div><div style="font-size:24px;font-weight:800;color:var(--text-dim);">${pYest}</div></div>
+  </div>`;
+}
+
+/* === RESET === */
+// Resets user data but preserves privateConfig (use doClearPrivateConfig separately to remove that).
+function resetAll(){['shopping','chores','birthdays','importantDates','appSettings'].forEach(k=>localStorage.removeItem(k));Object.keys(localStorage).filter(k=>k.startsWith('tt_')||k.startsWith('cr_')).forEach(k=>localStorage.removeItem(k));location.reload();}
+
+/* === INIT === */
+window.addEventListener('load',()=>{
+  // Private config must be applied FIRST so UI labels render correctly from the start
+  migrateLegacyTimetable();
+  applyPrivateConfig();
+
+  updateClock();setInterval(updateClock,1000);
+  setInterval(updateCurrentLesson,60000);
+  fetchWeather();setInterval(fetchWeather,600000);
+  renderJoke();
+  autoResetMon();
+  calSelected=new Date();renderCalendar();
+  updateStats();updateCurrentLesson();
+  const s=safeLoad('appSettings',{});const g=document.getElementById('gClientId');if(g&&s.googleClientId)g.value=s.googleClientId;
+  checkBirthdays();
+  renderCountdown();
+  renderImportantDatesList();
+  updateVersionDisplay(); // Display app version
+  startAutoSync(); // Enable auto-sync for calendar and tasks
+  setInterval(clearExpiredCache,300000); // Clear expired cache every 5 min
+  // Kiosk tracker
+  initKioskCamera();
+  updateKioskBadge();
+  document.addEventListener('touchstart',onKioskInteraction,{passive:true,capture:true});
+  document.addEventListener('click',onKioskInteraction,{capture:true});
+  // Inactivity auto-home
+  ['touchstart','click','keydown','scroll'].forEach(ev =>
+    document.addEventListener(ev, resetInactivityTimer, {passive:true, capture:true})
+  );
+  resetInactivityTimer(); // start timer on load
+});
+</script>
+
+<script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="console.warn('Google API script failed to load')"></script>
+<script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="console.warn('Google Identity Services failed to load')"></script>
+<script>
+// Safe API calls using fetch() + Bearer token
+// These REPLACE the old gapi.client versions but handle !isSignedIn gracefully
+
+async function fetchCalEvents(){
+  if(!isSignedIn){
+    console.log('fetchCalEvents: not signed in, skipping');
+    return;
+  }
+  
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token){
+    console.warn('fetchCalEvents: no token');
+    return;
+  }
+  
+  try{
+    const now=new Date();
+    const start=new Date(now);start.setDate(start.getDate()-7);
+    const end=new Date(now);end.setDate(end.getDate()+30);
+    
+    const url=new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+    url.searchParams.append('timeMin',start.toISOString());
+    url.searchParams.append('timeMax',end.toISOString());
+    url.searchParams.append('singleEvents','true');
+    url.searchParams.append('orderBy','startTime');
+    url.searchParams.append('maxResults','250');
+    
+    const r=await fetch(url.toString(),{
+      headers:{'Authorization':`Bearer ${token}`}
+    });
+    
+    if(r.status===401){
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      setGS('err','Token wygasł');
+      return;
+    }
+    
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    
+    const data=await r.json();
+    const evts=(data.items||[]).filter(e=>!e.transparency||e.transparency!=='transparent');
+    
+    showTodayEvents(evts);
+    calEvents=evts;
+    safeSave('calEvents',evts);
+    if(activeTab==='calendar')renderCalendar();
+    console.log('✓ Calendar fetched:',evts.length);
+  }catch(e){
+    console.warn('fetchCalEvents error',e);
+    showToast('Błąd pobierania kalendarza','error');
+    setGS('err','Błąd kalendarz');
+  }
+}
+
+async function loadTaskLists(){
+  if(!isSignedIn){
+    console.log('loadTaskLists: not signed in');
+    return;
+  }
+  
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token)return;
+  
+  try{
+    const r=await fetch('https://www.googleapis.com/tasks/v1/users/@me/lists?maxResults=20',{
+      headers:{'Authorization':`Bearer ${token}`}
+    });
+    
+    if(r.status===401){
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      return;
+    }
+    
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    
+    const data=await r.json();
+    const lists=data.items||[];
+    const sel=document.getElementById('taskListSel');
+    if(sel){
+      sel.innerHTML=lists.map(l=>`<option value="${esc(l.id)}">${esc(l.title)}</option>`).join('');
+      if(lists.length)loadTasks();
+    }
+    console.log('✓ Task lists:',lists.length);
+  }catch(e){
+    console.warn('loadTaskLists error',e);
+    setGS('err','Błąd lista zadań');
+  }
+}
+
+async function loadTasks(){
+  if(!isSignedIn) return;
+  
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token)return;
+  
+  const lid=document.getElementById('taskListSel')?.value;
+  if(!lid)return;
+  
+  try{
+    const url=new URL(`https://www.googleapis.com/tasks/v1/lists/${encodeURIComponent(lid)}/tasks`);
+    url.searchParams.append('maxResults','100');
+    url.searchParams.append('showCompleted','true');
+    
+    const r=await fetch(url.toString(),{
+      headers:{'Authorization':`Bearer ${token}`}
+    });
+    
+    if(r.status===401){
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      return;
+    }
+    
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    
+    const data=await r.json();
+    const items=data.items||[];
+    window._taskCount=items.filter(t=>t.status!=='completed').length;
+    updateStats();
+    
+    const el=document.getElementById('taskListItems');
+    if(el){
+      el.innerHTML=items.length?items.map(t=>`<div class="task-item${t.status==='completed'?' done':''}" onclick="toggleTask('${esc(lid)}','${esc(t.id)}','${t.status==='completed'?'needsAction':'completed'}')">\n<div class="task-check">${t.status==='completed'?'✓':''}</div>\n<span class="task-title">${esc(t.title)}</span>\n${t.due?`<span class="task-due">${new Date(t.due).toLocaleDateString('pl-PL')}</span>`:''}\n</div>`).join(''):`<div class="empty-state"><span class="ei">✅</span>Brak zadań</div>`;
+    }
+    console.log('✓ Tasks:',items.length);
+    checkTaskDeadlines(items);
+  }catch(e){
+    console.warn('loadTasks error',e);
+    setGS('err','Błąd zadania');
+  }
+}
+
+async function toggleTask(listId,taskId,newStatus){
+  if(!isSignedIn){
+    showToast('Zaloguj się najpierw','error');
+    return;
+  }
+  
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token)return;
+  
+  try{
+    const r=await fetch(`https://www.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(taskId)}`,{
+      method:'PATCH',
+      headers:{
+        'Authorization':`Bearer ${token}`,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({status:newStatus})
+    });
+    
+    if(r.status===401){
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      return;
+    }
+    
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    await loadTasks();
+  }catch(e){
+    console.warn('toggleTask error',e);
+    showToast('Błąd aktualizacji zadania','error');
+  }
+}
+
+async function sendDailySummaryEmail(manual=false){
+  if(!isSignedIn){
+    if(manual)alert('Zaloguj się przez Google najpierw.');
+    return;
+  }
+  
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token){
+    if(manual)alert('Brak tokena');
+    return;
+  }
+  
+  // Recipient priority: appSettings.kioskEmail (user override in UI) → privateConfig.kioskSummaryRecipient (imported)
+  const cfg=getPrivateConfig();
+  const recipient=((safeLoad('appSettings',{}).kioskEmail)||cfg.kioskSummaryRecipient||'').trim();
+  if(!recipient){if(manual)alert('Brak odbiorcy — ustaw email w Ustawieniach lub zaimportuj config');return;}
+
+  const dateStr=manual?todayStr():yesterdayStr();
+  const [y,m,d]=dateStr.split('-');
+  const datePL=`${d}.${m}.${y}`;
+
+  const touches=getTouches(dateStr);
+  const photos=await countPhotosForDate(dateStr);
+  const shopPending=safeLoad('shopping',[]).filter(i=>!i.done).length;
+  const choresDone=safeLoad('chores',[]).filter(i=>i.done).length;
+  const choresAll=safeLoad('chores',[]).length;
+
+  const html=`<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:24px;color:#111;">\n<h2 style="color:#4a7ff5;margin-bottom:4px;">📊 EtiudyOS</h2>\n<p style="color:#6b7280;margin-top:0;">Podsumowanie za <strong>${datePL}</strong></p>\n<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">\n<table style="width:100%;border-collapse:collapse;">\n  <tr><td style="padding:10px 0;">👆 Dotknięcia</td><td style="text-align:right;font-size:20px;font-weight:800;">${touches}</td></tr>\n  <tr style="background:#f9fafb;"><td style="padding:10px 8px;">📸 Zdjęcia</td><td style="text-align:right;font-size:20px;font-weight:800;">${photos}</td></tr>\n  <tr><td style="padding:10px 0;">🛒 Zakupy</td><td style="text-align:right;font-size:20px;font-weight:800;">${shopPending}</td></tr>\n  <tr style="background:#f9fafb;"><td style="padding:10px 8px;">🧹 Obowiązki</td><td style="text-align:right;font-size:20px;font-weight:800;">${choresDone}/${choresAll}</td></tr>\n</table>\n<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">\n<p style="color:#9ca3af;font-size:12px;">EtiudyOS · ${new Date().toLocaleString('pl-PL')}</p>\n</body></html>`;
+
+  try{
+    const rawMsg=[
+      `To: ${recipient}`,
+      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(`EtiudyOS – ${datePL}`)))}?=`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      btoa(unescape(encodeURIComponent(html)))
+    ].join('\r\n');
+    const encoded=btoa(rawMsg).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    
+    const r=await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${token}`,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({raw:encoded})
+    });
+    
+    if(r.status===401){
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      return;
+    }
+    
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    
+    if(manual)alert(`✅ Email wysłany`);
+    console.log('✓ Email sent');
+  }catch(e){
+    console.warn('Email error',e);
+    if(manual)alert('Błąd wysyłania email');
+  }
+}
+
+
+// Add visual debug panel - shows errors on screen directly
+
+let _debugMessages = [];
+
+function addDebugLog(msg, type='info') {
+  const ts = new Date().toLocaleTimeString('pl-PL');
+  const fullMsg = `[${ts}] ${msg}`;
+  _debugMessages.push({msg: fullMsg, type});
+  
+  // Keep last 20 messages
+  if(_debugMessages.length > 20) _debugMessages.shift();
+  
+  // Update debug panel
+  const panel = document.getElementById('debugPanel');
+  if(panel) {
+    const color = type === 'error' ? '#ef4444' : type === 'warn' ? '#f59e0b' : '#10b981';
+    const icon = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : '✓';
+    panel.innerHTML += `<div style="color:${color};font-size:11px;margin:3px 0;">${icon} ${fullMsg}</div>`;
+    panel.scrollTop = panel.scrollHeight;
+  }
+  
+  console.log(fullMsg);
+}
+
+// Override gapiLoaded
+const originalGapiLoaded = gapiLoaded;
+function gapiLoaded(){
+  addDebugLog('gapiLoaded() callback called', 'info');
+  if(typeof gapi === 'undefined') {
+    addDebugLog('ERROR: gapi is undefined!', 'error');
+  } else {
+    addDebugLog('✓ gapi object exists', 'info');
+    gapiReady = true;
+    addDebugLog('✓ gapiReady = true', 'info');
+  }
+}
+
+// Override gisLoaded
+const originalGisLoaded = gisLoaded;
+function gisLoaded(){
+  addDebugLog('gisLoaded() callback called', 'info');
+  if(typeof google === 'undefined') {
+    addDebugLog('ERROR: google is undefined!', 'error');
+  } else if(!google.accounts) {
+    addDebugLog('ERROR: google.accounts is undefined!', 'error');
+  } else {
+    addDebugLog('✓ google.accounts exists', 'info');
+    gisReady = true;
+    addDebugLog('✓ gisReady = true', 'info');
+  }
+}
+
+// Monitor googleSignIn
+const originalGoogleSignIn = googleSignIn;
+async function googleSignIn(){
+  addDebugLog('=== LOGIN ATTEMPT ===', 'warn');
+  addDebugLog(`gapi: ${gapiReady}, gis: ${gisReady}`, 'info');
+  addDebugLog(`navigator.onLine: ${navigator.onLine}`, 'info');
+  
+  return originalGoogleSignIn.call(this);
+}
+
+// Create debug panel at startup
+window.addEventListener('DOMContentLoaded', () => {
+  // Add debug toggle button
+  const debugBtn = document.createElement('button');
+  debugBtn.textContent = '🐛';
+  debugBtn.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9998;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: #4a7ff5;
+    color: white;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(74, 127, 245, 0.4);
+  `;
+  debugBtn.onclick = () => {
+    const panel = document.getElementById('debugPanel');
+    if(panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+  };
+  document.body.appendChild(debugBtn);
+  
+  // Add debug panel
+  const debugPanel = document.createElement('div');
+  debugPanel.id = 'debugPanel';
+  debugPanel.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 9997;
+    width: 280px;
+    height: 200px;
+    background: rgba(0, 0, 0, 0.95);
+    border: 1px solid #4a7ff5;
+    border-radius: 12px;
+    padding: 12px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 11px;
+    color: #10b981;
+  `;
+  document.body.appendChild(debugPanel);
+  
+  addDebugLog('Debug panel ready', 'info');
+  addDebugLog(`Network: ${navigator.onLine ? 'ONLINE' : 'OFFLINE'}`, 'info');
+});
+
+</script>
+</body>
+</html>
