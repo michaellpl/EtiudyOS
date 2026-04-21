@@ -2264,12 +2264,11 @@ function updateOfflineIndicator(){
 }
 
 /* === DEPLOYMENT / UPDATES ===
- * App is served from a local HTTP server on the family's Android phone (Termux).
- * Termux cron pulls from GitHub every 5 min, rewriting this file; the server's
- * Last-Modified header then reflects the pull time. We check *that*, not GitHub —
- * the phone does the GitHub talking. No CDN / api.github.com dependency here.
- * Optional: Termux can write /version.json next to this file with commit info
- * for a richer tooltip. If absent, we fall back to document.lastModified silently.
+ * App is served from GitHub Pages. A manual refresh just reloads the page;
+ * GitHub Pages' CDN honors Last-Modified, so a reload fetches the newest
+ * build once the CDN edge has picked it up (typically within 10 minutes
+ * of a git push). The version display reads document.lastModified, which
+ * reflects the Pages-served Last-Modified header.
  */
 function formatRelativeTimePL(date){
   if(!date||isNaN(date))return'-';
@@ -2289,8 +2288,8 @@ function formatRelativeTimePL(date){
 }
 
 function getLastUpdatedDate(){
-  // document.lastModified reflects the server's Last-Modified header,
-  // which on the Termux-hosted phone = when `git pull` last rewrote the file.
+  // document.lastModified reflects the Last-Modified header sent by the HTTP
+  // server. On GitHub Pages this is the time the file was published to the CDN.
   const lm=document.lastModified;
   if(lm){const d=new Date(lm);if(!isNaN(d))return d;}
   return null;
@@ -2307,20 +2306,6 @@ function renderVersionDisplay(date,tooltip){
 function updateVersionDisplay(){
   const d=getLastUpdatedDate();
   renderVersionDisplay(d);
-  // Silently try to enrich from ./version.json if Termux writes one after pull.
-  fetch('./version.json',{cache:'no-store'})
-    .then(r=>r.ok?r.json():null)
-    .then(v=>{
-      if(!v)return;
-      const rawDate=v.date||v.commitDate||v.updatedAt||v.pulledAt;
-      const sd=rawDate?new Date(rawDate):null;
-      if(!sd||isNaN(sd))return;
-      let tip='Serwer: '+sd.toLocaleString('pl-PL');
-      if(v.commit)tip+='\nCommit: '+esc(String(v.commit).substring(0,8));
-      if(v.message)tip+='\n'+esc(String(v.message).substring(0,80));
-      renderVersionDisplay(sd,tip);
-    })
-    .catch(()=>{}); // silent — version.json is optional
 }
 
 // Keep relative time fresh without touching the DOM if unchanged
@@ -2340,41 +2325,10 @@ async function manualGitHubUpdate(){
   if(lbl)lbl.textContent='Sprawdzam…';
   if(btn)btn.disabled=true;
 
-  // ── Step 1: Try to trigger an immediate git pull via Termux update endpoint ──
-  // The endpoint (port 8081) is a tiny Python server in start-etiudyos.sh.
-  // If unreachable (Termux not running, or old setup without the endpoint),
-  // we fall through silently to the Last-Modified check below.
-  let pullTriggered=false;
-  try{
-    if(lbl)lbl.textContent='Pobieram…';
-    const pullRes=await fetch('http://127.0.0.1:8081/update',{
-      method:'POST',
-      cache:'no-store',
-      signal:AbortSignal.timeout(10000) // git pull can take a few seconds
-    });
-    if(pullRes.ok){
-      const data=await pullRes.json().catch(()=>({}));
-      pullTriggered=true;
-      if(data.changed===false){
-        // GitHub had nothing new — no reload needed
-        showToast('Brak zmian na GitHub ✓','info',2500);
-        updateVersionDisplay();
-        return;
-      }
-      // data.changed===true: Termux pulled something new, fall through to reload
-      showToast('Pobrano nową wersję — przeładowuję…','success',1500);
-      setTimeout(()=>location.reload(),600);
-      return;
-    }
-  }catch(e){
-    // Endpoint unreachable — not an error worth showing, just fall through
-    console.info('Update endpoint not available, falling back to Last-Modified check');
-  }
-
-  // ── Step 2: Fallback — check if Termux server already has a newer file ──
-  // (covers the case where the 5-min cron pulled something since page load,
-  //  or the endpoint above isn't set up yet)
-  if(lbl)lbl.textContent='Sprawdzam…';
+  // Hosting model: GitHub Pages. To pick up a new version we simply reload
+  // the page; the browser + Pages CDN will serve whatever's newest. No API
+  // calls, no local server dependency. First do a HEAD request so we can
+  // tell the user whether a reload would actually bring anything new.
   try{
     const url=location.pathname+'?t='+Date.now();
     const res=await fetch(url,{method:'HEAD',cache:'no-store'});
@@ -2389,6 +2343,7 @@ async function manualGitHubUpdate(){
       return;
     }
     if(!serverLM){
+      // No Last-Modified header — just reload optimistically
       showToast('Przeładowuję…','info',1200);
       setTimeout(()=>location.reload(),400);
       return;
@@ -2397,7 +2352,7 @@ async function manualGitHubUpdate(){
     updateVersionDisplay();
   }catch(e){
     console.warn('Update check failed:',e);
-    showToast('Serwer niedostępny – spróbuj ponownie później','error',3500);
+    showToast('Brak połączenia — spróbuj ponownie później','error',3500);
   }finally{
     if(lbl)lbl.textContent=original;
     if(btn)btn.disabled=false;
