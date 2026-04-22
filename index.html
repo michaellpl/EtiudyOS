@@ -2350,7 +2350,7 @@ async function manualGitHubUpdate(){
 // MINIMAL FIX: Just skip Discovery API, use token directly
 // This is inserted at line ~1713
 
-const OAUTH_SCOPES=['https://www.googleapis.com/auth/calendar.readonly','https://www.googleapis.com/auth/tasks.readonly','https://www.googleapis.com/auth/gmail.send'];
+const OAUTH_SCOPES=['https://www.googleapis.com/auth/calendar','https://www.googleapis.com/auth/tasks','https://www.googleapis.com/auth/gmail.send'];
 
 // gapiReady kept as a permanent `false` for legacy reads; the Google API JS client is no longer
 // loaded or required. All Google REST calls go through direct fetch() with the Bearer token.
@@ -2751,13 +2751,20 @@ async function addTask(){
       body:JSON.stringify({title})
     });
     if(!r.ok){
-      if(r.status===401){
-        isSignedIn=false;
-        safeSave('lastOAuthToken',null);
-        setGS('err','Sesja wygasła — zaloguj ponownie');
-        return;
+      const abort=await handleApiError(r,'addTask');
+      if(!abort){
+        // token was silently refreshed, retry once
+        const tok2=safeLoad('lastOAuthToken',null);
+        if(tok2){
+          const r2=await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`,{
+            method:'POST',
+            headers:{'Authorization':'Bearer '+tok2,'Content-Type':'application/json'},
+            body:JSON.stringify({title})
+          });
+          if(r2.ok){ inp.value=''; loadTasks(); return; }
+        }
       }
-      throw new Error('HTTP '+r.status);
+      return;
     }
     inp.value='';
     loadTasks();
@@ -3266,9 +3273,59 @@ window.addEventListener('load',()=>{
 // Safe API calls using fetch() + Bearer token
 // These REPLACE the old gapi.client versions but handle !isSignedIn gracefully
 
+// ── Central API error handler ─────────────────────────────────────────────
+// Returns true if the caller should abort (unrecoverable), false if retryable
+let _reAuthInFlight=false;
+async function handleApiError(resp,context){
+  const status=resp?.status;
+  _dbg(`API error [${context}]: HTTP ${status}`,'error');
+  if(status===401){
+    // Token expired — attempt silent re-auth first
+    isSignedIn=false;
+    safeSave('lastOAuthToken',null);
+    if(!_reAuthInFlight&&!isFullyKiosk()&&typeof tokenClient!=='undefined'&&tokenClient){
+      _reAuthInFlight=true;
+      _dbg('Token expired — attempting silent re-auth','warn');
+      try{
+        await new Promise((resolve,reject)=>{
+          const orig=tokenClient.callback;
+          tokenClient.callback=resp2=>{
+            tokenClient.callback=orig;
+            _reAuthInFlight=false;
+            if(resp2.error){ reject(resp2.error); return; }
+            isSignedIn=true;
+            safeSave('lastOAuthToken',resp2.access_token);
+            setGS('ok','Token odświeżony ✓');
+            _dbg('Silent re-auth OK','info');
+            resolve();
+          };
+          tokenClient.requestAccessToken({prompt:'none'});
+        });
+        return false; // token refreshed, caller can retry
+      }catch(e){
+        _reAuthInFlight=false;
+        _dbg('Silent re-auth failed: '+e,'warn');
+      }
+    }
+    // Silent re-auth failed — prompt user
+    setGS('err','Sesja wygasła');
+    showToast('⚠️ Sesja Google wygasła — zaloguj ponownie','error',8000);
+    _dbg('Session expired — user must re-login','error');
+    return true;
+  }
+  if(status===403){
+    _dbg(`Brak uprawnień [${context}] — wymagane ponowne zalogowanie`,'error');
+    showToast('🔒 Brak uprawnień — zaloguj ponownie (nowe uprawnienia)','error',8000);
+    isSignedIn=false;
+    safeSave('lastOAuthToken',null);
+    setGS('err','Brak uprawnień');
+    return true;
+  }
+  return false;
+}
+
 async function fetchCalEvents(){
   if(!isSignedIn){
-    console.log('fetchCalEvents: not signed in, skipping');
     return;
   }
   
@@ -3294,17 +3351,13 @@ async function fetchCalEvents(){
       headers:{'Authorization':`Bearer ${token}`}
     });
     
-    if(r.status===401){
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
-      setGS('err','Token wygasł');
+    if(!r.ok){
+      await handleApiError(r,'fetchCalEvents');
       return;
     }
     
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    
     const data=await r.json();
-    const evts=(data.items||[]).filter(e=>!e.transparency||e.transparency!=='transparent');
+    const evts=(data.items||[]);
     
     showTodayEvents(evts);
     calEvents=evts;
@@ -3332,14 +3385,10 @@ async function loadTaskLists(){
       headers:{'Authorization':`Bearer ${token}`}
     });
     
-    if(r.status===401){
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+    if(!r.ok){
+      await handleApiError(r,'loadTaskLists');
       return;
     }
-    
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    
     const data=await r.json();
     const lists=data.items||[];
     const sel=document.getElementById('taskListSel');
@@ -3372,13 +3421,10 @@ async function loadTasks(){
       headers:{'Authorization':`Bearer ${token}`}
     });
     
-    if(r.status===401){
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+    if(!r.ok){
+      await handleApiError(r,'loadTasks');
       return;
     }
-    
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     
     const data=await r.json();
     const items=data.items||[];
@@ -3416,7 +3462,8 @@ async function toggleTask(listId,taskId,newStatus){
       body:JSON.stringify({status:newStatus})
     });
     
-    if(r.status===401){
+    if(!r.ok){
+      await handleApiError(r,'toggleTask');
       isSignedIn=false;
       safeSave('lastOAuthToken',null);
       return;
