@@ -2379,6 +2379,50 @@ async function attemptAutoLogin(){
   }
 }
 
+// Dynamic GIS loader — fallback when the static <script> tag's onload never
+// fires (e.g., Fully Kiosk URL allowlist block, stale WebView cache, DNS
+// block, adblocker). Cache-busts the URL and pipes all load events to the
+// on-tablet debug panel so failures are visible instead of silent.
+let _gisLoadInFlight=false;
+function loadGISScript(attempt){
+  attempt=attempt||1;
+  if(gisReady){ _dbg('loadGIS: already ready, skip','info'); return; }
+  if(_gisLoadInFlight){ _dbg('loadGIS: already in flight, skip','info'); return; }
+  if(typeof google!=='undefined'&&google.accounts){
+    _dbg('loadGIS: google.accounts already present','info');
+    gisReady=true; attemptAutoLogin(); return;
+  }
+  _gisLoadInFlight=true;
+  _dbg('loadGIS: próba '+attempt+' — wstrzykuję skrypt','warn');
+  // Remove any prior dynamic attempt so we start fresh
+  document.querySelectorAll('script[data-role="gis-dyn"]').forEach(n=>n.remove());
+  const s=document.createElement('script');
+  s.src='https://accounts.google.com/gsi/client?t='+Date.now(); // cache-bust
+  s.async=true; s.defer=true; s.dataset.role='gis-dyn';
+  s.onload=()=>{
+    _gisLoadInFlight=false;
+    _dbg('✓ dynamic GIS onload fired','info');
+    if(typeof google==='undefined'||!google.accounts){
+      _dbg('❌ onload fired but google.accounts still missing','error');
+      return;
+    }
+    gisReady=true;
+    _dbg('✓ gisReady = true (dynamic)','info');
+    attemptAutoLogin();
+  };
+  s.onerror=()=>{
+    _gisLoadInFlight=false;
+    _dbg('❌ dynamic GIS onerror (próba '+attempt+')','error');
+    if(attempt<3){
+      setTimeout(()=>loadGISScript(attempt+1), 1500*attempt);
+    }else{
+      _dbg('❌ GIS nie załadowany po 3 próbach — sprawdź Fully Kiosk whitelist lub sieć','error');
+      showToast('❌ Nie można pobrać Google (sprawdź Fully Kiosk whitelist)','error',6000);
+    }
+  };
+  document.head.appendChild(s);
+}
+
 function initTC(){
   if(!gisReady||typeof google==='undefined'||!google.accounts){
     console.warn('GIS not ready');
@@ -2446,9 +2490,11 @@ async function googleSignIn(){
     return;
   }
 
-  // Wait for GIS script to load, bounded to 15s, yielding every 200ms
+  // Wait for GIS script to load, bounded to 15s, yielding every 200ms.
+  // If static preload failed, kick off a dynamic retry with cache-bust.
   if(!gisReady){
     showToast('⏳ Ładowanie Google...','info');
+    loadGISScript(1); // idempotent — no-op if already in flight or ready
     const start=Date.now();
     while(!gisReady){
       if(Date.now()-start>15000){
@@ -3067,7 +3113,7 @@ window.addEventListener('load',()=>{
 });
 </script>
 
-<script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="console.warn('Google Identity Services failed to load')"></script>
+<script async defer src="https://accounts.google.com/gsi/client" onload="(window.addDebugLog||console.log)('static GIS tag onload','info');gisLoaded();" onerror="(window.addDebugLog||console.warn)('❌ static GIS tag onerror — blok sieci/allowlist','error')"></script>
 <script>
 // Safe API calls using fetch() + Bearer token
 // These REPLACE the old gapi.client versions but handle !isSignedIn gracefully
@@ -3384,6 +3430,16 @@ window.addEventListener('DOMContentLoaded', () => {
   
   addDebugLog('Debug panel ready', 'info');
   addDebugLog(`Network: ${navigator.onLine ? 'ONLINE' : 'OFFLINE'}`, 'info');
+
+  // Safety net: if the static <script> tag hasn't reported success within 3s,
+  // trigger the dynamic loader. Handles cases where the WebView loaded a stale
+  // cached failure or the static tag's onload silently didn't fire.
+  setTimeout(() => {
+    if (typeof gisReady !== 'undefined' && !gisReady) {
+      addDebugLog('Static GIS tag never set gisReady — uruchamiam dynamic loader', 'warn');
+      if (typeof loadGISScript === 'function') loadGISScript(1);
+    }
+  }, 3000);
 });
 
 </script>
