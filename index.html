@@ -386,8 +386,8 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <button class="nav-btn" onclick="switchTab('doodle')" data-tab="doodle"><span class="nav-icon">🎨</span>Rysuj</button>
   <button class="nav-btn" onclick="switchTab('gemini');geminiToggleMic();" data-tab="gemini" style="padding:0;"><span class="nav-icon" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;"><svg viewBox="0 0 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gng" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 2C14 2 14 13 2 14C14 14 14 26 14 26C14 26 14 15 26 14C14 14 14 2 14 2Z" fill="url(#gng)"/></svg></span>Gemini</button>
   <button class="nav-btn" onclick="switchTab('settings')" data-tab="settings"><span class="nav-icon">⚙️</span>Ustawienia</button>
-  <button class="nav-btn" id="navRefreshBtn" onclick="manualGitHubUpdate()" title="Pobierz nową wersję z GitHub" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.1);"><span class="nav-icon">🔄</span><span style="font-size:11px;">Aktualizuj</span></button>
-  <div id="versionDisplay" style="font-size:10px;color:rgba(255,255,255,.4);padding:8px 4px;text-align:center;border-top:1px solid rgba(255,255,255,.1);width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
+  <div id="versionDisplay" style="margin-top:auto;font-size:10px;color:rgba(255,255,255,.4);padding:8px 4px 4px;text-align:center;border-top:1px solid rgba(255,255,255,.1);width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
+  <button class="nav-btn" id="navRefreshBtn" onclick="manualGitHubUpdate()" title="Pobierz nową wersję z GitHub"><span class="nav-icon">🔄</span><span style="font-size:11px;">Aktualizuj</span></button>
 </div>
 
 <!-- PANELS -->
@@ -2270,53 +2270,35 @@ function updateOfflineIndicator(){
  * of a git push). The version display reads document.lastModified, which
  * reflects the Pages-served Last-Modified header.
  */
-function formatRelativeTimePL(date){
+function formatBuildStamp(date){
   if(!date||isNaN(date))return'-';
-  const diffMs=Date.now()-date.getTime();
-  if(diffMs<0)return'za chwilę';
-  const s=Math.floor(diffMs/1000);
-  const m=Math.floor(s/60);
-  const h=Math.floor(m/60);
-  const d=Math.floor(h/24);
-  if(s<30)return'przed chwilą';
-  if(m<1)return s+' s temu';
-  if(m<60)return m+' min temu';
-  if(h<24)return h+' godz. temu';
-  if(d===1)return'wczoraj';
-  if(d<7)return d+' dni temu';
-  return date.toLocaleDateString('pl-PL');
+  const p=n=>String(n).padStart(2,'0');
+  // YY:MM:DD:HH:MM  (last MM = minutes)
+  return p(date.getFullYear()%100)+':'+p(date.getMonth()+1)+':'+p(date.getDate())+':'+p(date.getHours())+':'+p(date.getMinutes());
 }
 
 function getLastUpdatedDate(){
   // document.lastModified reflects the Last-Modified header sent by the HTTP
-  // server. On GitHub Pages this is the time the file was published to the CDN.
+  // server. On GitHub Pages this is the time the file was published to the CDN,
+  // which matches the commit time of the push from Claude.
   const lm=document.lastModified;
   if(lm){const d=new Date(lm);if(!isNaN(d))return d;}
   return null;
 }
 
-function renderVersionDisplay(date,tooltip){
+function renderVersionDisplay(date){
   const el=document.getElementById('versionDisplay');
   if(!el)return;
-  el.textContent='Zaktualizowano: '+formatRelativeTimePL(date);
-  if(tooltip)el.title=tooltip;
-  else if(date)el.title='Plik zaktualizowany: '+date.toLocaleString('pl-PL');
+  el.textContent=formatBuildStamp(date);
+  if(date)el.title='Ostatnia aktualizacja: '+date.toLocaleString('pl-PL');
 }
 
 function updateVersionDisplay(){
-  const d=getLastUpdatedDate();
-  renderVersionDisplay(d);
+  renderVersionDisplay(getLastUpdatedDate());
 }
 
-// Keep relative time fresh without touching the DOM if unchanged
-setInterval(()=>{
-  const el=document.getElementById('versionDisplay');
-  if(!el)return;
-  const d=getLastUpdatedDate();
-  if(!d)return;
-  const txt='Zaktualizowano: '+formatRelativeTimePL(d);
-  if(el.textContent!==txt)el.textContent=txt;
-},60000);
+// The build stamp is fixed for the lifetime of the page load — no periodic
+// refresh needed. updateVersionDisplay() is called once from init.
 
 async function manualGitHubUpdate(){
   const btn=document.getElementById('navRefreshBtn');
