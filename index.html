@@ -113,7 +113,7 @@ html,body{
 .quick-btn:active{transform:translateY(0);}
 
 /* Hero */
-#clockCard{grid-row:1/3;display:flex;flex-direction:column;justify-content:space-between;min-height:320px;padding:20px;}
+#clockCard{display:flex;flex-direction:column;justify-content:center;padding:20px;}
 #clockBig{font-size:clamp(56px,7vw,84px);font-weight:800;color:var(--lime);line-height:1;letter-spacing:-2px;text-shadow:0 0 60px rgba(158,240,48,.2);}
 #clockDateLine{font-size:13px;font-weight:600;color:var(--text-dark-dim);margin-top:4px;text-transform:capitalize;}
 #clockGreeting{font-size:20px;font-weight:800;color:#fff;margin-top:8px;}
@@ -393,7 +393,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <button class="nav-btn" onclick="switchTab('gemini');geminiToggleMic();" data-tab="gemini" style="padding:0;"><span class="nav-icon" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;"><svg viewBox="0 0 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gng" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 2C14 2 14 13 2 14C14 14 14 26 14 26C14 26 14 15 26 14C14 14 14 2 14 2Z" fill="url(#gng)"/></svg></span>Gemini</button>
   <button class="nav-btn" onclick="switchTab('settings')" data-tab="settings"><span class="nav-icon">⚙️</span>Ustawienia</button>
   <div id="versionDisplay" style="margin-top:auto;font-size:10px;color:rgba(255,255,255,.4);padding:8px 4px 4px;text-align:center;border-top:1px solid rgba(255,255,255,.1);width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
-  <button class="nav-btn" id="navRefreshBtn" onclick="manualGitHubUpdate()" title="Pobierz nową wersję z GitHub"><span class="nav-icon">🔄</span><span style="font-size:11px;">Aktualizuj</span></button>
+
 </div>
 
 <!-- PANELS -->
@@ -403,15 +403,9 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <div id="tab-home" class="tab-panel active">
     <div class="home-grid">
       <div class="card card-dark" id="clockCard">
-        <div class="lbl lbl-dark">Czas lokalny · Warszawa</div>
         <div id="clockBig">00:00</div>
         <div id="clockDateLine">—</div>
         <div id="clockGreeting">Dzień dobry!</div>
-        <div id="heroStats">
-          <div class="hero-stat"><div class="hstat-n" id="statShop">0</div><div class="hstat-l">Zakupy</div></div>
-          <div class="hero-stat"><div class="hstat-n" id="statChores">0</div><div class="hstat-l">Obowiązki</div></div>
-          <div class="hero-stat"><div class="hstat-n" id="statTasks">0</div><div class="hstat-l">Zadania</div></div>
-        </div>
       </div>
       <div class="card" id="weatherCard">
         <div class="lbl">Pogoda · Warszawa</div>
@@ -2303,49 +2297,6 @@ function updateVersionDisplay(){
   renderVersionDisplay(getLastUpdatedDate());
 }
 
-// The build stamp is fixed for the lifetime of the page load — no periodic
-// refresh needed. updateVersionDisplay() is called once from init.
-
-async function manualGitHubUpdate(){
-  const btn=document.getElementById('navRefreshBtn');
-  const lbl=btn?btn.querySelector('span:last-child'):null;
-  const original=lbl?lbl.textContent:'Aktualizuj';
-  if(lbl)lbl.textContent='Sprawdzam…';
-  if(btn)btn.disabled=true;
-
-  // Hosting model: GitHub Pages. To pick up a new version we simply reload
-  // the page; the browser + Pages CDN will serve whatever's newest. No API
-  // calls, no local server dependency. First do a HEAD request so we can
-  // tell the user whether a reload would actually bring anything new.
-  try{
-    const url=location.pathname+'?t='+Date.now();
-    const res=await fetch(url,{method:'HEAD',cache:'no-store'});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const serverLM=res.headers.get('Last-Modified');
-    const localD=new Date(document.lastModified);
-    const serverD=serverLM?new Date(serverLM):null;
-    const newer=serverD&&!isNaN(serverD)&&!isNaN(localD)&&serverD.getTime()>localD.getTime()+1000;
-    if(newer){
-      showToast('Nowa wersja — przeładowuję…','success',1500);
-      setTimeout(()=>location.reload(),500);
-      return;
-    }
-    if(!serverLM){
-      // No Last-Modified header — just reload optimistically
-      showToast('Przeładowuję…','info',1200);
-      setTimeout(()=>location.reload(),400);
-      return;
-    }
-    showToast('Wszystko aktualne ✓','info',2500);
-    updateVersionDisplay();
-  }catch(e){
-    console.warn('Update check failed:',e);
-    showToast('Brak połączenia — spróbuj ponownie później','error',3500);
-  }finally{
-    if(lbl)lbl.textContent=original;
-    if(btn)btn.disabled=false;
-  }
-}
 // VISUAL DIAGNOSTICS VERSION
 // MINIMAL FIX: Just skip Discovery API, use token directly
 // This is inserted at line ~1713
@@ -3252,7 +3203,7 @@ window.addEventListener('load',()=>{
   checkBirthdays();
   renderCountdown();
   renderImportantDatesList();
-  updateVersionDisplay(); // Display app version
+  updateVersionDisplay(); // Display app version (version display only)
   startAutoSync(); // Enable auto-sync for calendar and tasks
   setInterval(clearExpiredCache,300000); // Clear expired cache every 5 min
   // Kiosk tracker
