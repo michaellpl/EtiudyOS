@@ -1,0 +1,26 @@
+{
+  "name": "EtiudyOS",
+  "short_name": "EtiudyOS",
+  "description": "Family dashboard for the Etiudy household",
+  "start_url": "/EtiudyOS/",
+  "scope": "/EtiudyOS/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0f172a",
+  "theme_color": "#1e2950",
+  "lang": "pl",
+  "icons": [
+    {
+      "src": "/EtiudyOS/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/EtiudyOS/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

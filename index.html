@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>EtiudyOS</title>
+<link rel="manifest" href="/EtiudyOS/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EtiudyOS">
+<meta name="theme-color" content="#1e2950">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
@@ -3587,6 +3593,12 @@ window.addEventListener('DOMContentLoaded', () => {
       if (typeof loadGISScript === 'function') loadGISScript(1);
     }
   }, 3000);
+  // Register PWA service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/EtiudyOS/sw.js')
+      .then(reg => addDebugLog('SW registered: ' + reg.scope, 'info'))
+      .catch(err => addDebugLog('SW registration failed: ' + err.message, 'warn'));
+  }
 });
 
 </script>
