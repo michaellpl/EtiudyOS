@@ -2482,14 +2482,147 @@ function initTC(){
   }
 }
 
+// Detect Fully Kiosk Browser
+function isFullyKiosk(){
+  return /FullyKiosk|Fully Kiosk/.test(navigator.userAgent)||
+         typeof window.fully!=='undefined';
+}
+
+// PKCE helpers for redirect-based OAuth (Fully Kiosk workaround)
+function generatePKCEPair(){
+  const verifier=Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map(b=>String.fromCharCode(b))
+    .join('');
+  const base64url=s=>btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  const encodedVerifier=base64url(verifier);
+  const hash=new TextEncoder().encode(verifier);
+  return crypto.subtle.digest('SHA-256',hash).then(buf=>{
+    const challenge=base64url(String.fromCharCode(...new Uint8Array(buf)));
+    return{verifier:encodedVerifier,challenge};
+  });
+}
+
+async function initiateFullyKioskOAuth(){
+  _dbg('Detected Fully Kiosk - using redirect OAuth flow','info');
+  const settings=safeLoad('appSettings',{});
+  const clientId=sanitizeClientId(settings.googleClientId||'');
+  if(!clientId){
+    showToast('❌ Client ID not configured','error');
+    _dbg('No client ID for redirect OAuth','error');
+    return;
+  }
+  
+  const{verifier,challenge}=await generatePKCEPair();
+  sessionStorage.setItem('pkce_verifier',verifier);
+  sessionStorage.setItem('pkce_timestamp',Date.now().toString());
+  
+  const redirectUri=window.location.origin+window.location.pathname;
+  const params=new URLSearchParams({
+    client_id:clientId,
+    redirect_uri:redirectUri,
+    response_type:'code',
+    scope:OAUTH_SCOPES.join(' '),
+    code_challenge:challenge,
+    code_challenge_method:'S256',
+    access_type:'offline',
+    prompt:'consent'
+  });
+  
+  _dbg('Redirecting to Google OAuth: '+redirectUri,'info');
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params.toString();
+}
+
+async function handleOAuthCallback(){
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  const error=params.get('error');
+  
+  if(error){
+    _dbg('OAuth error in callback: '+error,'error');
+    showToast('❌ Google OAuth error: '+error,'error');
+    window.history.replaceState({},'',window.location.pathname);
+    return;
+  }
+  
+  if(!code){
+    return; // Not an OAuth callback
+  }
+  
+  _dbg('OAuth callback received with code','info');
+  _signInInFlight=true;
+  
+  const verifier=sessionStorage.getItem('pkce_verifier');
+  const timestamp=parseInt(sessionStorage.getItem('pkce_timestamp')||'0');
+  if(Date.now()-timestamp>600000){
+    _dbg('PKCE verifier expired (>10min)','error');
+    showToast('❌ OAuth session expired','error');
+    _signInInFlight=false;
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('pkce_timestamp');
+    return;
+  }
+  
+  const settings=safeLoad('appSettings',{});
+  const clientId=sanitizeClientId(settings.googleClientId||'');
+  const redirectUri=window.location.origin+window.location.pathname;
+  
+  try{
+    const resp=await fetch('https://oauth2.googleapis.com/token',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({
+        client_id:clientId,
+        code:code,
+        code_verifier:verifier,
+        redirect_uri:redirectUri,
+        grant_type:'authorization_code'
+      }).toString()
+    });
+    
+    if(!resp.ok){
+      const err=await resp.json();
+      _dbg('Token exchange failed: '+JSON.stringify(err),'error');
+      showToast('❌ Token exchange failed','error');
+      _signInInFlight=false;
+      return;
+    }
+    
+    const data=await resp.json();
+    isSignedIn=true;
+    safeSave('lastOAuthToken',data.access_token);
+    setGS('ok','Zalogowano ✓');
+    showToast('✅ Zalogowano!','success');
+    _dbg('✓ Token received via redirect flow','info');
+    
+    // Clean up and reload data
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('pkce_timestamp');
+    window.history.replaceState({},'',window.location.pathname);
+    
+    _signInInFlight=false;
+    await Promise.all([fetchCalEvents(),loadTaskLists()]);
+  }catch(e){
+    _dbg('Token exchange error: '+e.message,'error');
+    showToast('❌ '+e.message,'error');
+    _signInInFlight=false;
+  }
+}
+
 async function googleSignIn(){
   _dbg('=== LOGIN ATTEMPT ===','warn');
   _dbg('gis:'+gisReady+' online:'+navigator.onLine,'info');
-  console.log('googleSignIn() - gis:',gisReady);
+  _dbg('Fully Kiosk detected: '+isFullyKiosk(),'info');
+  console.log('googleSignIn() - gis:',gisReady,'fully:',isFullyKiosk());
 
   // Prevent double-tap from opening two popups or stacking requests
   if(_signInInFlight){
     _dbg('sign-in already in flight, ignoring','warn');
+    return;
+  }
+  
+  // Use redirect flow for Fully Kiosk (no popup support)
+  if(isFullyKiosk()){
+    await initiateFullyKioskOAuth();
     return;
   }
 
@@ -3439,6 +3572,11 @@ window.addEventListener('DOMContentLoaded', () => {
   
   addDebugLog('Debug panel ready', 'info');
   addDebugLog(`Network: ${navigator.onLine ? 'ONLINE' : 'OFFLINE'}`, 'info');
+  
+  // Check for OAuth callback from Google redirect
+  if(typeof handleOAuthCallback==='function'){
+    handleOAuthCallback().catch(e=>addDebugLog('OAuth callback error: '+e.message,'error'));
+  }
 
   // Safety net: if the static <script> tag hasn't reported success within 3s,
   // trigger the dynamic loader. Handles cases where the WebView loaded a stale
