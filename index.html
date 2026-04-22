@@ -627,7 +627,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
     <div class="card gap-card">
       <div class="stitle">Google (Kalendarz &amp; Zadania)</div>
       <div id="gStatus"><div class="g-dot" id="gDot"></div><span id="gStatusText">Niezalogowany</span></div>
-      <div class="fgroup"><label class="flbl">Client ID (Google Cloud Console)</label><input class="finput" id="gClientId" placeholder="xxxxxxxxx.apps.googleusercontent.com" oninput="saveSettings()"></div>
+      <div class="fgroup"><label class="flbl">Client ID (Google Cloud Console)</label><input class="finput" id="gClientId" placeholder="xxxxxxxxx.apps.googleusercontent.com" oninput="saveSettings()"><span style="font-size:11px;color:var(--text-dim);margin-top:4px;display:block;">Format: <code>123456789-abc.apps.googleusercontent.com</code> — bez http://, bez przecinka</span></div>
       <div class="flex-row"><button class="btn btn-dark" onclick="googleSignIn()">🔑 Zaloguj Google</button><button class="btn btn-ghost" onclick="googleSignOut()">Wyloguj</button></div>
     </div>
     <div class="card gap-card">
@@ -2432,7 +2432,10 @@ function initTC(){
   const settings=safeLoad('appSettings',{});
   const cfg=getPrivateConfig();
   // Priority: appSettings (user override) → privateConfig (imported) → empty (blocks OAuth)
-  const clientId=(settings.googleClientId||cfg.googleClientId||'').trim();
+  const rawId=(settings.googleClientId||cfg.googleClientId||'');
+  const clientId=sanitizeClientId(rawId);
+  _dbg('Client ID raw: "'+rawId.slice(0,40)+'"','info');
+  _dbg('Client ID used: "'+clientId.slice(0,40)+'"','info');
   if(!clientId){
     console.warn('No Google Client ID configured — import private config or set in Settings');
     setGS('err','Brak Client ID — zaimportuj config');
@@ -2753,7 +2756,13 @@ function clearDoodle(){if(!dCtx)return;const c=document.getElementById('doodleCa
 function saveDoodle(){const l=document.createElement('a');l.download='rysunek.png';l.href=document.getElementById('doodleCanvas').toDataURL();l.click();}
 
 /* === SETTINGS === */
-function saveSettings(){const s=safeLoad('appSettings',{});s.googleClientId=(document.getElementById('gClientId')?.value||'').trim();s.kioskEmail=(document.getElementById('kioskEmail')?.value||'').trim();s.geminiApiKey=(document.getElementById('geminiApiKey')?.value||'').trim();s.cameras=Array.from(document.querySelectorAll('.cam-row')).map(r=>({name:r.querySelector('.cam-name-inp')?.value?.trim()||'',url:r.querySelector('.cam-url-inp')?.value?.trim()||''}));safeSave('appSettings',s);renderCameras();}
+function sanitizeClientId(raw){
+  // Strips accidental copy-paste artefacts:
+  //   http://xxx.apps.googleusercontent.com  → xxx.apps.googleusercontent.com
+  //   https://xxx.apps.googleusercontent.com,  → xxx.apps.googleusercontent.com
+  return (raw||'').trim().replace(/^https?:\/\//,'').replace(/[,/\s]+$/,'');
+}
+function saveSettings(){const s=safeLoad('appSettings',{});s.googleClientId=sanitizeClientId(document.getElementById('gClientId')?.value||'');s.kioskEmail=(document.getElementById('kioskEmail')?.value||'').trim();s.geminiApiKey=(document.getElementById('geminiApiKey')?.value||'').trim();s.cameras=Array.from(document.querySelectorAll('.cam-row')).map(r=>({name:r.querySelector('.cam-name-inp')?.value?.trim()||'',url:r.querySelector('.cam-url-inp')?.value?.trim()||''}));safeSave('appSettings',s);renderCameras();}
 function renderSettings(){
   const s=safeLoad('appSettings',{});
   const g=document.getElementById('gClientId');if(g)g.value=s.googleClientId||'';
