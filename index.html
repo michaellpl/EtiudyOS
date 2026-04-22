@@ -2364,22 +2364,22 @@ async function manualGitHubUpdate(){
 
 const OAUTH_SCOPES=['https://www.googleapis.com/auth/calendar.readonly','https://www.googleapis.com/auth/tasks.readonly','https://www.googleapis.com/auth/gmail.send'];
 
-let gapiReady=false,gisReady=false,tokenClient=null,isSignedIn=false;
+// gapiReady kept as a permanent `false` for legacy reads; the Google API JS client is no longer
+// loaded or required. All Google REST calls go through direct fetch() with the Bearer token.
+let gapiReady=false,gisReady=false,tokenClient=null,isSignedIn=false,_signInInFlight=false;
 
-function gapiLoaded(){
-  console.log('✓ gapi script loaded');
-  if(typeof gapi!=='undefined'){
-    gapiReady=true;
-    if(gisReady) attemptAutoLogin();
-  }
-}
+function _dbg(msg,type){ try{ (window.addDebugLog||(()=>{}))(msg,type||'info'); }catch{} }
 
 function gisLoaded(){
   console.log('✓ GIS script loaded');
-  if(typeof google!=='undefined'&&google.accounts){
-    gisReady=true;
-    if(gapiReady) attemptAutoLogin();
+  _dbg('gisLoaded() callback called','info');
+  if(typeof google==='undefined'||!google.accounts){
+    _dbg('ERROR: google.accounts is undefined','error');
+    return;
   }
+  gisReady=true;
+  _dbg('✓ gisReady = true','info');
+  attemptAutoLogin();
 }
 
 async function attemptAutoLogin(){
@@ -2402,7 +2402,7 @@ function initTC(){
     console.warn('GIS not ready');
     return false;
   }
-  
+
   const settings=safeLoad('appSettings',{});
   const cfg=getPrivateConfig();
   // Priority: appSettings (user override) → privateConfig (imported) → empty (blocks OAuth)
@@ -2410,6 +2410,7 @@ function initTC(){
   if(!clientId){
     console.warn('No Google Client ID configured — import private config or set in Settings');
     setGS('err','Brak Client ID — zaimportuj config');
+    _dbg('ERROR: no Client ID configured','error');
     return false;
   }
   try{
@@ -2417,10 +2418,12 @@ function initTC(){
       client_id:clientId,
       scope:OAUTH_SCOPES.join(' '),
       callback:async resp=>{
+        _signInInFlight=false;
         if(resp.error){
           console.warn('OAuth error:',resp.error);
           setGS('err','OAuth: '+resp.error);
           showToast('❌ '+resp.error,'error');
+          _dbg('OAuth callback error: '+resp.error,'error');
           return;
         }
         isSignedIn=true;
@@ -2428,7 +2431,16 @@ function initTC(){
         setGS('ok','Zalogowano ✓');
         showToast('✅ Zalogowano!','success');
         console.log('✓ User signed in');
+        _dbg('✓ token received','info');
         await Promise.all([fetchCalEvents(),loadTaskLists()]);
+      },
+      error_callback:err=>{
+        _signInInFlight=false;
+        const msg=(err&&(err.type||err.message))||'popup_failed';
+        console.warn('OAuth error_callback:',err);
+        setGS('err','OAuth: '+msg);
+        showToast('❌ Google: '+msg,'error');
+        _dbg('error_callback: '+msg,'error');
       }
     });
     return true;
@@ -2436,38 +2448,58 @@ function initTC(){
     console.error('initTC error:',e);
     setGS('err','OAuth init error');
     showToast('❌ '+e.message,'error');
+    _dbg('initTC threw: '+e.message,'error');
     return false;
   }
 }
 
 async function googleSignIn(){
-  console.log('googleSignIn() - gapi:',gapiReady,'gis:',gisReady);
-  
-  if(!gapiReady||!gisReady){
+  _dbg('=== LOGIN ATTEMPT ===','warn');
+  _dbg('gis:'+gisReady+' online:'+navigator.onLine,'info');
+  console.log('googleSignIn() - gis:',gisReady);
+
+  // Prevent double-tap from opening two popups or stacking requests
+  if(_signInInFlight){
+    _dbg('sign-in already in flight, ignoring','warn');
+    return;
+  }
+
+  // Wait for GIS script to load, bounded to 15s, yielding every 200ms
+  if(!gisReady){
     showToast('⏳ Ładowanie Google...','info');
-    
-    // Wait up to 15 seconds
     const start=Date.now();
-    while(!gapiReady||!gisReady){
+    while(!gisReady){
       if(Date.now()-start>15000){
-        showToast('❌ Timeout - Google scripts nie załadowały się','error');
+        showToast('❌ Timeout - Google nie załadowany','error');
+        _dbg('GIS load timeout','error');
         return;
       }
       await new Promise(r=>setTimeout(r,200));
     }
   }
-  
+
   if(!initTC()){
     showToast('❌ Błąd inicjalizacji OAuth','error');
     return;
   }
-  
-  try{
-    tokenClient.requestAccessToken();
-  }catch(e){
-    console.error('Token request error:',e);
-    showToast('❌ '+e.message,'error');
-  }
+
+  _signInInFlight=true;
+  // Drop the currently focused element first — iframes/buttons that keep focus
+  // can occasionally wedge the GIS popup handshake in WebView.
+  try{ if(document.activeElement&&document.activeElement.blur)document.activeElement.blur(); }catch{}
+
+  // Defer the actual popup call one tick so the click handler can unwind before
+  // GIS opens its window. This avoids re-entrancy issues seen in Android WebView.
+  setTimeout(()=>{
+    try{
+      tokenClient.requestAccessToken({prompt:safeLoad('lastOAuthToken',null)?'':'consent'});
+    }catch(e){
+      _signInInFlight=false;
+      console.error('Token request error:',e);
+      showToast('❌ '+e.message,'error');
+      _dbg('requestAccessToken threw: '+e.message,'error');
+    }
+  },0);
 }
 
 function googleSignOut(){
@@ -2522,18 +2554,41 @@ function checkTaskDeadlines(tasks){
   }
 }
 async function addTask(){
-  if(!isSignedIn||!gapiReady){
+  if(!isSignedIn){
     setGS('err','Zaloguj się najpierw');
     return;
   }
   const inp=document.getElementById('newTaskInput');
   const title=inp?.value?.trim();
   if(!title)return;
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token){
+    setGS('err','Brak tokenu — zaloguj ponownie');
+    return;
+  }
+  const listId=document.getElementById('taskListSel').value;
+  if(!listId){
+    setGS('err','Nie wybrano listy zadań');
+    return;
+  }
   try{
-    await gapi.client.tasks.tasks.insert({
-      tasklist:document.getElementById('taskListSel').value,
-      resource:{title}
+    const r=await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`,{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+token,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({title})
     });
+    if(!r.ok){
+      if(r.status===401){
+        isSignedIn=false;
+        safeSave('lastOAuthToken',null);
+        setGS('err','Sesja wygasła — zaloguj ponownie');
+        return;
+      }
+      throw new Error('HTTP '+r.status);
+    }
     inp.value='';
     loadTasks();
   }catch(e){
@@ -2548,7 +2603,7 @@ const SYNC_INTERVAL=300000; // 5 minutes
 
 function startAutoSync(){
   setInterval(()=>{
-    if(isSignedIn&&gapiReady&&Date.now()-lastSyncTime>SYNC_INTERVAL){
+    if(isSignedIn&&Date.now()-lastSyncTime>SYNC_INTERVAL){
       console.log('Auto-syncing calendar and tasks...');
       lastSyncTime=Date.now();
       Promise.all([fetchCalEvents(),loadTaskLists()]).catch(e=>console.warn('Auto-sync failed',e));
@@ -3030,7 +3085,6 @@ window.addEventListener('load',()=>{
 });
 </script>
 
-<script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()" onerror="console.warn('Google API script failed to load')"></script>
 <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()" onerror="console.warn('Google Identity Services failed to load')"></script>
 <script>
 // Safe API calls using fetch() + Bearer token
@@ -3291,43 +3345,11 @@ function addDebugLog(msg, type='info') {
   console.log(fullMsg);
 }
 
-// Override gapiLoaded
-const originalGapiLoaded = gapiLoaded;
-function gapiLoaded(){
-  addDebugLog('gapiLoaded() callback called', 'info');
-  if(typeof gapi === 'undefined') {
-    addDebugLog('ERROR: gapi is undefined!', 'error');
-  } else {
-    addDebugLog('✓ gapi object exists', 'info');
-    gapiReady = true;
-    addDebugLog('✓ gapiReady = true', 'info');
-  }
-}
-
-// Override gisLoaded
-const originalGisLoaded = gisLoaded;
-function gisLoaded(){
-  addDebugLog('gisLoaded() callback called', 'info');
-  if(typeof google === 'undefined') {
-    addDebugLog('ERROR: google is undefined!', 'error');
-  } else if(!google.accounts) {
-    addDebugLog('ERROR: google.accounts is undefined!', 'error');
-  } else {
-    addDebugLog('✓ google.accounts exists', 'info');
-    gisReady = true;
-    addDebugLog('✓ gisReady = true', 'info');
-  }
-}
-
-// Monitor googleSignIn
-const originalGoogleSignIn = googleSignIn;
-async function googleSignIn(){
-  addDebugLog('=== LOGIN ATTEMPT ===', 'warn');
-  addDebugLog(`gapi: ${gapiReady}, gis: ${gisReady}`, 'info');
-  addDebugLog(`navigator.onLine: ${navigator.onLine}`, 'info');
-  
-  return originalGoogleSignIn.call(this);
-}
+// Note: previous versions defined `gapiLoaded`/`gisLoaded`/`googleSignIn` overrides here.
+// They introduced an infinite recursion in googleSignIn (captured `originalGoogleSignIn`
+// resolved to the override itself due to function-declaration hoisting), which crashed
+// the Android WebView render process. Debug logging is now inlined directly into the
+// canonical functions above.
 
 // Create debug panel at startup
 window.addEventListener('DOMContentLoaded', () => {
