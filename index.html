@@ -113,7 +113,10 @@ html,body{
 .quick-btn:active{transform:translateY(0);}
 
 /* Hero */
-#clockCard{display:flex;flex-direction:column;justify-content:center;padding:14px 18px;align-self:start;}
+#clockCard{display:flex;flex-direction:column;justify-content:flex-start;padding:14px 18px;align-self:stretch;}
+#clockQuickActions{display:flex;flex-wrap:wrap;gap:7px;margin-top:auto;padding-top:16px;}
+#clockQuickActions .quick-btn{font-size:11px;padding:7px 11px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.18);}
+#clockQuickActions .quick-btn:hover{background:rgba(255,255,255,.2);transform:translateY(-1px);}
 #clockBig{font-size:clamp(38px,4.5vw,58px);font-weight:800;color:var(--lime);line-height:1;letter-spacing:-2px;text-shadow:0 0 40px rgba(158,240,48,.2);}
 #clockDateLine{font-size:12px;font-weight:600;color:var(--text-dark-dim);margin-top:3px;text-transform:capitalize;}
 #clockGreeting{font-size:15px;font-weight:700;color:#fff;margin-top:6px;}
@@ -407,6 +410,15 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <div id="clockBig">00:00</div>
         <div id="clockDateLine">—</div>
         <div id="clockGreeting">Dzień dobry!</div>
+        <div id="clockQuickActions">
+          <button class="quick-btn" onclick="switchTab('shopping');document.getElementById('shopInput').focus();">➕ Zakupy</button>
+          <button class="quick-btn" onclick="switchTab('chores');document.getElementById('choreInput').focus();">➕ Obowiązek</button>
+          <button class="quick-btn" onclick="switchTab('tasks');document.getElementById('newTaskInput').focus();">➕ Zadanie</button>
+          <button class="quick-btn" onclick="switchTab('calendar');">📅 Kalendarz</button>
+          <button class="quick-btn" onclick="if(isSignedIn)fetchCalEvents();else googleSignIn();">🔄 Synchronizuj</button>
+          <button class="quick-btn" onclick="startVoiceCommand();">🎤 Głos</button>
+          <button class="quick-btn" onclick="switchTab('settings');">⚙️ Ustawienia</button>
+        </div>
       </div>
       <div class="card" id="weatherCard">
         <div class="lbl">Pogoda · Warszawa</div>
@@ -447,18 +459,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <div class="lbl lbl-dark" id="lessonCardLabel">Aktualna lekcja</div>
         <div id="currentLessonInfo"></div>
       </div>
-      <div class="card" id="actionsCard" style="grid-column:1/-1;">
-        <div class="lbl">⚡ Szybkie akcje</div>
-        <div class="quick-actions">
-          <button class="quick-btn" onclick="switchTab('shopping');document.getElementById('shopInput').focus();">➕ Dodaj zakupy</button>
-          <button class="quick-btn" onclick="switchTab('chores');document.getElementById('choreInput').focus();">➕ Nowy obowiązek</button>
-          <button class="quick-btn" onclick="switchTab('tasks');document.getElementById('newTaskInput').focus();">➕ Nowe zadanie</button>
-          <button class="quick-btn" onclick="switchTab('calendar');">📅 Kalendarz</button>
-          <button class="quick-btn" onclick="if(isSignedIn)fetchCalEvents();else googleSignIn();">🔄 Synchronizuj</button>
-          <button class="quick-btn" onclick="startVoiceCommand();">🎤 Głos</button>
-          <button class="quick-btn" onclick="switchTab('settings');document.getElementById('kioskEmail').focus();">⚙️ Ustawienia</button>
-        </div>
-      </div>
+
       <div class="card" id="jokeCard" style="grid-column:1/-1;">
         <div class="lbl">😄 Żart dnia</div>
         <div id="jokeDayText" style="font-size:15px;font-weight:700;color:var(--text);line-height:1.55;"></div>
