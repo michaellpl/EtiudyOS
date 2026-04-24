@@ -256,7 +256,8 @@ html,body{
 /* ========== CAMERAS ========== */
 #cameraGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
 .cam-card{background:#0a0a0a;border-radius:var(--r-sm);overflow:hidden;position:relative;aspect-ratio:16/9;}
-.cam-card iframe,.cam-card img{width:100%;height:100%;border:none;object-fit:cover;}
+.cam-card img{width:100%;height:100%;border:none;object-fit:cover;}
+.cam-card iframe{position:absolute;top:-52px;left:-130px;width:calc(100% + 130px);height:calc(100% + 70px);border:none;}
 .cam-label{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:var(--r-pill);backdrop-filter:blur(4px);}
 .cam-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#555;font-size:13px;font-weight:600;flex-direction:column;gap:8px;}
 
