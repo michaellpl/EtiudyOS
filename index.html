@@ -3596,10 +3596,35 @@ window.addEventListener('DOMContentLoaded', () => {
       if (typeof loadGISScript === 'function') loadGISScript(1);
     }
   }, 3000);
-  // Register PWA service worker
+  // Register PWA service worker + auto-reload on new version
   if ('serviceWorker' in navigator) {
+    // Listen for APP_UPDATED message from new SW
+    let _swReloading = false;
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data && event.data.type === 'APP_UPDATED' && !_swReloading) {
+        _swReloading = true;
+        addDebugLog('Nowa wersja SW: ' + (event.data.version || '?') + ' — odświeżam…', 'info');
+        showToast('🔄 Nowa wersja — odświeżam…', 'info', 2500);
+        setTimeout(() => window.location.reload(), 2000);
+      }
+    });
+
     navigator.serviceWorker.register('/EtiudyOS/sw.js')
-      .then(reg => addDebugLog('SW registered: ' + reg.scope, 'info'))
+      .then(reg => {
+        addDebugLog('SW registered: ' + reg.scope, 'info');
+        // Catch case where new SW is already waiting (tab was open during deploy)
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              // New SW installed while old one was active — activate it immediately
+              nw.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      })
       .catch(err => addDebugLog('SW registration failed: ' + err.message, 'warn'));
   }
 });
