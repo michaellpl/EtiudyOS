@@ -399,7 +399,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <button class="nav-btn" onclick="switchTab('timetable')" data-tab="timetable"><span class="nav-icon">📚</span>Lekcje</button>
   <button class="nav-btn" onclick="switchTab('cameras')" data-tab="cameras"><span class="nav-icon">📷</span>Kamery</button>
   <button class="nav-btn" onclick="switchTab('doodle')" data-tab="doodle"><span class="nav-icon">🎨</span>Rysuj</button>
-  <button class="nav-btn" onclick="switchTab('gemini');geminiToggleMic();" data-tab="gemini" style="padding:0;"><span class="nav-icon" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;"><svg viewBox="0 0 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gng" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 2C14 2 14 13 2 14C14 14 14 26 14 26C14 26 14 15 26 14C14 14 14 2 14 2Z" fill="url(#gng)"/></svg></span>Gemini</button>
+  <button class="nav-btn" onclick="switchTab('gemini')" data-tab="gemini" style="padding:0;"><span class="nav-icon" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;"><svg viewBox="0 0 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gng" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4285F4"/><stop offset="50%" stop-color="#9B72CB"/><stop offset="100%" stop-color="#EA4335"/></linearGradient></defs><path d="M14 2C14 2 14 13 2 14C14 14 14 26 14 26C14 26 14 15 26 14C14 14 14 2 14 2Z" fill="url(#gng)"/></svg></span>Gemini</button>
   <button class="nav-btn" onclick="switchTab('settings')" data-tab="settings"><span class="nav-icon">⚙️</span>Ustawienia</button>
   <div id="versionDisplay" style="margin-top:auto;font-size:10px;color:rgba(255,255,255,.4);padding:8px 4px 4px;text-align:center;border-top:1px solid rgba(255,255,255,.1);width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
 
@@ -2877,10 +2877,10 @@ function geminiOnOpen() {
   const key = (safeLoad('appSettings',{}).geminiApiKey||'').trim();
   const st = document.getElementById('geminiStatus');
   if(st) st.textContent = key ? '🟢 Klucz aktywny' : '🔴 Brak klucza API';
-  // Auto-start voice immediately when tab opens
-  if(key) {
-    setTimeout(() => startVoiceCommand(), 300);
-  }
+  // NO auto-mic — kids must explicitly tap 🎤 button.
+  // Previously called startVoiceCommand() which is the GLOBAL voice command
+  // (wrong function!) and conflicted with geminiToggleMic from nav button.
+  // The mic auto-fired geminiSend() on any background noise = ghost API calls.
 }
 
 function geminiAddMsg(role, text, thinking) {
@@ -3018,9 +3018,13 @@ function geminiToggleMic() {
   geminiRecognition.onresult = e => {
     const transcript = e.results[0][0].transcript;
     const inp = document.getElementById('geminiInput');
-    if(inp) inp.value = transcript;
+    if(inp) {
+      inp.value = transcript;
+      inp.focus();
+    }
     geminiStopMic();
-    geminiSend();
+    // DO NOT auto-send! User must explicitly press send button or Enter.
+    // Auto-sending on any background noise was draining API quota.
   };
   geminiRecognition.onerror = () => geminiStopMic();
   geminiRecognition.onend = () => geminiStopMic();
