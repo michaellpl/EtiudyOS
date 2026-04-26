@@ -3597,9 +3597,10 @@ function addDebugLog(msg, type='info') {
 
 // Create debug panel at startup
 window.addEventListener('DOMContentLoaded', () => {
-  // Add debug toggle button
+  // Add debug toggle button — HIDDEN by default, revealed by long-pressing Ustawienia (1.5s)
   const debugBtn = document.createElement('button');
   debugBtn.textContent = '🐛';
+  debugBtn.id = 'debugToggleBtn';
   debugBtn.style.cssText = `
     position: fixed;
     bottom: 20px;
@@ -3614,6 +3615,7 @@ window.addEventListener('DOMContentLoaded', () => {
     font-size: 24px;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(74, 127, 245, 0.4);
+    display: none;
   `;
   debugBtn.onclick = () => {
     const panel = document.getElementById('debugPanel');
@@ -3622,8 +3624,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
   document.body.appendChild(debugBtn);
-  
-  // Add debug panel
+
+  // Add debug panel — also hidden by default
   const debugPanel = document.createElement('div');
   debugPanel.id = 'debugPanel';
   debugPanel.style.cssText = `
@@ -3641,8 +3643,41 @@ window.addEventListener('DOMContentLoaded', () => {
     font-family: monospace;
     font-size: 11px;
     color: #10b981;
+    display: none;
   `;
   document.body.appendChild(debugPanel);
+
+  // ── Hidden debug reveal: long-press Ustawienia button (1.5s) toggles 🐛 button visibility
+  const settingsNavBtn = document.querySelector('.nav-btn[data-tab="settings"]');
+  if(settingsNavBtn) {
+    let _lpTimer = null;
+    let _lpFired = false;
+    const startLP = (e) => {
+      _lpFired = false;
+      _lpTimer = setTimeout(() => {
+        _lpFired = true;
+        const btn = document.getElementById('debugToggleBtn');
+        const panel = document.getElementById('debugPanel');
+        if(btn) {
+          const visible = btn.style.display !== 'none';
+          btn.style.display = visible ? 'none' : 'flex';
+          if(panel) panel.style.display = visible ? 'none' : 'block';
+          // Light haptic feedback if supported
+          if(navigator.vibrate) navigator.vibrate(30);
+          if(typeof showToast==='function') showToast(visible ? '🐛 Debug ukryty' : '🐛 Debug widoczny', 'info', 1500);
+        }
+      }, 1500);
+    };
+    const cancelLP = () => { clearTimeout(_lpTimer); };
+    settingsNavBtn.addEventListener('pointerdown', startLP);
+    settingsNavBtn.addEventListener('pointerup', cancelLP);
+    settingsNavBtn.addEventListener('pointerleave', cancelLP);
+    settingsNavBtn.addEventListener('pointercancel', cancelLP);
+    // Prevent the regular click from firing if long-press succeeded
+    settingsNavBtn.addEventListener('click', (e) => {
+      if(_lpFired) { e.preventDefault(); e.stopPropagation(); _lpFired = false; }
+    }, true);
+  }
   
   addDebugLog('Debug panel ready', 'info');
   addDebugLog(`Network: ${navigator.onLine ? 'ONLINE' : 'OFFLINE'}`, 'info');
