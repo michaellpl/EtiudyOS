@@ -2897,19 +2897,40 @@ function geminiAddMsg(role, text, thinking) {
   return bubble;
 }
 
+let _geminiLastRequest = 0;
+const GEMINI_MIN_INTERVAL = 5000; // min 5s between requests
+
 async function geminiSend() {
   const input = document.getElementById('geminiInput');
   const text = (input?.value||'').trim();
   if(!text) return;
-  input.value = '';
+
   const key = (safeLoad('appSettings',{}).geminiApiKey||'').trim();
   if(!key) {
     geminiAddMsg('ai', '⚠️ Brak klucza API Gemini. Dodaj go w Ustawieniach → Asystent Gemini.');
     return;
   }
+
+  // Client-side rate limiting — prevent hammering the API
+  const now = Date.now();
+  const sinceLastReq = now - _geminiLastRequest;
+  if(_geminiLastRequest > 0 && sinceLastReq < GEMINI_MIN_INTERVAL) {
+    const wait = Math.ceil((GEMINI_MIN_INTERVAL - sinceLastReq) / 1000);
+    geminiAddMsg('ai', `⏳ Chwilkę… jeszcze ${wait}s przed następnym pytaniem.`);
+    return;
+  }
+
+  input.value = '';
   geminiAddMsg('user', text);
   geminiHistory.push({ role:'user', parts:[{ text }] });
-  const thinkBubble = geminiAddMsg('ai', 'Myślę…', true);
+  const thinkBubble = geminiAddMsg('ai', '🤔 Myślę…', true);
+  _geminiLastRequest = Date.now();
+
+  await _geminiCall(key, thinkBubble, 0);
+}
+
+async function _geminiCall(key, thinkBubble, attempt) {
+  const MAX_RETRIES = 2;
   try {
     const body = {
       system_instruction: { parts:[{ text: GEMINI_SYSTEM_PROMPT }] },
@@ -2921,13 +2942,50 @@ async function geminiSend() {
       { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }
     );
     const data = await resp.json();
-    if(data.error) throw new Error(data.error.message||'Błąd API');
+
+    // Rate limit / quota error → parse retry delay and wait
+    if(data.error) {
+      const msg = data.error.message || '';
+      const isRateLimit = resp.status === 429 ||
+        msg.toLowerCase().includes('quota') ||
+        msg.toLowerCase().includes('resource_exhausted') ||
+        msg.toLowerCase().includes('rate');
+
+      if(isRateLimit && attempt < MAX_RETRIES) {
+        // Parse "Please retry in X.XXs" from the error message
+        const match = msg.match(/retry in ([\d.]+)s/i);
+        const waitSec = match ? Math.ceil(parseFloat(match[1])) + 1 : 15;
+        console.warn(`Gemini rate limit — retrying in ${waitSec}s (attempt ${attempt+1})`);
+
+        // Countdown in the thinking bubble
+        let t = waitSec;
+        if(thinkBubble) thinkBubble.textContent = `⏳ Za dużo pytań naraz — czekam ${t}s…`;
+        const timer = setInterval(() => {
+          t--;
+          if(thinkBubble) thinkBubble.textContent = `⏳ Zaraz odpowiem… jeszcze ${t}s`;
+          if(t <= 0) clearInterval(timer);
+        }, 1000);
+
+        await new Promise(r => setTimeout(r, waitSec * 1000));
+        clearInterval(timer);
+        _geminiLastRequest = Date.now();
+        return _geminiCall(key, thinkBubble, attempt + 1);
+      }
+      throw new Error(msg || 'Błąd API');
+    }
+
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Przepraszam, nie rozumiem. Spróbuj jeszcze raz!';
     if(thinkBubble){ thinkBubble.textContent = reply; thinkBubble.classList.remove('gem-thinking'); }
     geminiHistory.push({ role:'model', parts:[{ text: reply }] });
     geminiSpeak(reply);
   } catch(e) {
-    if(thinkBubble){ thinkBubble.textContent = '⚠️ Błąd: ' + (e.message||'Problem z połączeniem.'); thinkBubble.classList.remove('gem-thinking'); }
+    if(thinkBubble){
+      const friendly = e.message && e.message.includes('quota')
+        ? '⚠️ Za dużo pytań! Poczekaj chwilę i spróbuj ponownie.'
+        : '⚠️ Błąd połączenia. Sprawdź internet i spróbuj jeszcze raz.';
+      thinkBubble.textContent = friendly;
+      thinkBubble.classList.remove('gem-thinking');
+    }
   }
 }
 
