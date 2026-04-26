@@ -683,6 +683,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
       <div class="flex-row">
         <button class="btn btn-ghost btn-sm" onclick="updateDebugPanel()">🔄 Odśwież info</button>
         <button class="btn btn-ghost btn-sm" onclick="logDebugInfo()">📋 Drukuj do konsoli</button>
+        <button class="btn btn-ghost btn-sm" onclick="forceAppUpdate()" style="background:var(--lime);color:var(--dark);font-weight:800;">⬇️ Pobierz nową wersję</button>
         <button class="btn btn-danger btn-sm" onclick="if(confirm('Reset wszystkich danych?'))resetAll()">⚠️ Resetuj dane</button>
         <button class="btn btn-ghost btn-sm" onclick="previewBirthday()">🎂 Testuj overlay urodzin</button>
       </div>
@@ -2171,6 +2172,22 @@ function renderPresenceWidget(){
       </div>
     </div>`;
   }).join('');
+}
+
+async function forceAppUpdate(){
+  showToast('⬇️ Pobieram nową wersję…', 'info', 3000);
+  try {
+    // Unregister all SWs
+    if('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    // Clear all caches
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+  } catch(e) { /* ignore */ }
+  // Hard reload — bypasses browser cache
+  window.location.reload(true);
 }
 
 function updateDebugPanel(){
@@ -3706,36 +3723,11 @@ window.addEventListener('DOMContentLoaded', () => {
       if (typeof loadGISScript === 'function') loadGISScript(1);
     }
   }, 3000);
-  // Register PWA service worker + auto-reload on new version
+  // Unregister any existing Service Workers (SW removed — manual refresh used instead)
   if ('serviceWorker' in navigator) {
-    // Listen for APP_UPDATED message from new SW
-    let _swReloading = false;
-    navigator.serviceWorker.addEventListener('message', event => {
-      if (event.data && event.data.type === 'APP_UPDATED' && !_swReloading) {
-        _swReloading = true;
-        addDebugLog('Nowa wersja SW: ' + (event.data.version || '?') + ' — odświeżam…', 'info');
-        showToast('🔄 Nowa wersja — odświeżam…', 'info', 2500);
-        setTimeout(() => window.location.reload(), 2000);
-      }
-    });
-
-    navigator.serviceWorker.register('/EtiudyOS/sw.js')
-      .then(reg => {
-        addDebugLog('SW registered: ' + reg.scope, 'info');
-        // Catch case where new SW is already waiting (tab was open during deploy)
-        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        reg.addEventListener('updatefound', () => {
-          const nw = reg.installing;
-          if (!nw) return;
-          nw.addEventListener('statechange', () => {
-            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-              // New SW installed while old one was active — activate it immediately
-              nw.postMessage({ type: 'SKIP_WAITING' });
-            }
-          });
-        });
-      })
-      .catch(err => addDebugLog('SW registration failed: ' + err.message, 'warn'));
+    navigator.serviceWorker.getRegistrations()
+      .then(regs => { regs.forEach(r => r.unregister()); })
+      .catch(() => {});
   }
 });
 
