@@ -2946,6 +2946,9 @@ async function _geminiCall(key, thinkBubble, attempt) {
     // Rate limit / quota error → parse retry delay and wait
     if(data.error) {
       const msg = data.error.message || '';
+      // DEBUG: log full error to console + debug panel so we can see exactly what Google says
+      console.error('[Gemini API error]', JSON.stringify(data.error));
+      if(typeof addDebugLog==='function') addDebugLog('Gemini error: '+msg.substring(0,200), 'error');
       const isRateLimit = resp.status === 429 ||
         msg.toLowerCase().includes('quota') ||
         msg.toLowerCase().includes('resource_exhausted') ||
@@ -2980,11 +2983,11 @@ async function _geminiCall(key, thinkBubble, attempt) {
     geminiSpeak(reply);
   } catch(e) {
     if(thinkBubble){
-      const friendly = e.message && e.message.includes('quota')
-        ? '⚠️ Za dużo pytań! Poczekaj chwilę i spróbuj ponownie.'
-        : '⚠️ Błąd połączenia. Sprawdź internet i spróbuj jeszcze raz.';
-      thinkBubble.textContent = friendly;
+      // Show full error so we can debug — kids will rarely see this anyway
+      const errDetail = (e.message||'').substring(0, 250);
+      thinkBubble.textContent = '⚠️ ' + errDetail;
       thinkBubble.classList.remove('gem-thinking');
+      if(typeof addDebugLog==='function') addDebugLog('Gemini final error: '+errDetail, 'error');
     }
   }
 }

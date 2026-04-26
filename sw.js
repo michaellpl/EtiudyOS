@@ -1,6 +1,6 @@
 // EtiudyOS Service Worker
 // VERSION is bumped on every deploy — triggers update detection in Chrome
-const VERSION = '2025-04-26T00:00:00';
+const VERSION = '2026-04-26T18-30';
 const CACHE_NAME = 'etiudyos-' + VERSION;
 
 // Install: skip waiting so new SW activates immediately
