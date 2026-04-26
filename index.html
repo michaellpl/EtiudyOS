@@ -200,7 +200,6 @@ html,body{
 .cev-name{font-size:14px;font-weight:600;}
 
 /* ========== TASKS ========== */
-#taskListSel{width:100%;background:var(--surface2);border:none;border-radius:var(--r-sm);padding:11px 14px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;outline:none;cursor:pointer;margin-bottom:12px;}
 .task-item{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surface2);border-radius:var(--r-sm);margin-bottom:7px;cursor:pointer;transition:background .15s;}
 .task-item:hover{background:#eaefff;}
 .task-item.done .task-title{text-decoration:line-through;color:var(--text-faint);}
@@ -208,6 +207,13 @@ html,body{
 .task-item.done .task-check{background:#22c55e;border-color:#22c55e;color:#fff;}
 .task-title{font-size:14px;font-weight:600;flex:1;}
 .task-due{font-size:12px;color:var(--text-dim);}
+/* Task category tabs */
+.task-cat-bar{display:flex;gap:8px;margin-bottom:12px;}
+.task-cat-btn{flex:1;padding:11px 6px;border-radius:var(--r-sm);border:2px solid transparent;background:var(--surface);color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:var(--shadow);}
+.task-cat-btn:hover{background:var(--surface2);}
+.task-cat-btn.active.cat-zakupy{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;}
+.task-cat-btn.active.cat-dom{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;}
+.task-cat-btn.active.cat-szkola{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;}
 
 /* ========== SHOPPING ========== */
 .shop-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
@@ -388,8 +394,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <div id="sideNavTime">--:--</div>
   <button class="nav-btn active" onclick="switchTab('home')" data-tab="home"><span class="nav-icon">🏠</span>Dom</button>
   <button class="nav-btn" onclick="switchTab('calendar')" data-tab="calendar"><span class="nav-icon">📅</span>Kalendarz</button>
-  <button class="nav-btn" onclick="switchTab('tasks')" data-tab="tasks"><span class="nav-icon">✅</span>Zadania</button>
-  <button class="nav-btn" onclick="switchTab('shopping')" data-tab="shopping"><span class="nav-icon">🛒</span>Zakupy</button>
+  <button class="nav-btn" onclick="switchTab('tasks')" data-tab="tasks"><span class="nav-icon">📋</span>Lista</button>
   <button class="nav-btn" onclick="switchTab('chores')" data-tab="chores"><span class="nav-icon">🧹</span>Obowiązki</button>
   <button class="nav-btn" onclick="switchTab('timetable')" data-tab="timetable"><span class="nav-icon">📚</span>Lekcje</button>
   <button class="nav-btn" onclick="switchTab('cameras')" data-tab="cameras"><span class="nav-icon">📷</span>Kamery</button>
@@ -411,9 +416,10 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <div id="clockDateLine">—</div>
         <div id="clockGreeting">Dzień dobry!</div>
         <div id="clockQuickActions">
-          <button class="quick-btn" onclick="switchTab('shopping');document.getElementById('shopInput').focus();">➕ Zakupy</button>
+          <button class="quick-btn" onclick="switchTab('tasks');switchTaskCat('Zakupy');document.getElementById('newTaskInput').focus();">🛒 Zakupy</button>
+          <button class="quick-btn" onclick="switchTab('tasks');switchTaskCat('Dom');document.getElementById('newTaskInput').focus();">🏠 Dom</button>
+          <button class="quick-btn" onclick="switchTab('tasks');switchTaskCat('Szkoła');document.getElementById('newTaskInput').focus();">📚 Szkoła</button>
           <button class="quick-btn" onclick="switchTab('chores');document.getElementById('choreInput').focus();">➕ Obowiązek</button>
-          <button class="quick-btn" onclick="switchTab('tasks');document.getElementById('newTaskInput').focus();">➕ Zadanie</button>
           <button class="quick-btn" onclick="switchTab('calendar');">📅 Kalendarz</button>
           <button class="quick-btn" onclick="if(isSignedIn)fetchCalEvents();else googleSignIn();">🔄 Synchronizuj</button>
           <button class="quick-btn" onclick="startVoiceCommand();">🎤 Głos</button>
@@ -485,11 +491,14 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
     </div>
   </div>
 
-  <!-- TASKS -->
+  <!-- TASKS / LISTA -->
   <div id="tab-tasks" class="tab-panel">
+    <div class="task-cat-bar">
+      <button class="task-cat-btn active cat-zakupy" onclick="switchTaskCat('Zakupy')" data-cat="Zakupy">🛒 Zakupy</button>
+      <button class="task-cat-btn cat-dom" onclick="switchTaskCat('Dom')" data-cat="Dom">🏠 Dom</button>
+      <button class="task-cat-btn cat-szkola" onclick="switchTaskCat('Szkoła')" data-cat="Szkoła">📚 Szkoła</button>
+    </div>
     <div class="card">
-      <div class="lbl">Google Zadania</div>
-      <select id="taskListSel" onchange="loadTasks()"><option value="">— wybierz listę —</option></select>
       <div id="taskListItems"><div class="empty-state"><span class="ei">✅</span>Zaloguj przez Google, aby zobaczyć zadania</div></div>
     </div>
     <div class="card gap-card">
@@ -497,36 +506,13 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <input class="add-input" id="newTaskInput" placeholder="Nowe zadanie…" onkeydown="if(event.key==='Enter')addTask()">
         <button class="add-btn" onclick="addTask()">+</button>
       </div>
+      <div style="margin-top:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="clearDoneTasks()">🗑️ Usuń ukończone</button>
+      </div>
     </div>
   </div>
 
-  <!-- SHOPPING -->
-  <div id="tab-shopping" class="tab-panel">
-    <div class="card">
-      <div class="shop-cats" id="shopCats">
-        <button class="cat-chip active" onclick="setShopFilter('Wszystkie')" data-cat="Wszystkie">Wszystkie</button>
-        <button class="cat-chip" onclick="setShopFilter('Nabiał')" data-cat="Nabiał">🥛 Nabiał</button>
-        <button class="cat-chip" onclick="setShopFilter('Warzywa')" data-cat="Warzywa">🥦 Warzywa</button>
-        <button class="cat-chip" onclick="setShopFilter('Mięso')" data-cat="Mięso">🥩 Mięso</button>
-        <button class="cat-chip" onclick="setShopFilter('Piekarnia')" data-cat="Piekarnia">🍞 Piekarnia</button>
-        <button class="cat-chip" onclick="setShopFilter('Chemia')" data-cat="Chemia">🧴 Chemia</button>
-        <button class="cat-chip" onclick="setShopFilter('Inne')" data-cat="Inne">📦 Inne</button>
-      </div>
-      <div class="add-form" style="margin-bottom:16px;">
-        <input class="add-input" id="shopInput" placeholder="Dodaj produkt…" onkeydown="if(event.key==='Enter')addShopItem()">
-        <select class="add-select" id="shopCatSel">
-          <option>Nabiał</option><option>Warzywa</option><option>Mięso</option>
-          <option>Piekarnia</option><option>Chemia</option><option>Inne</option>
-        </select>
-        <button class="add-btn" onclick="addShopItem()">+</button>
-      </div>
-      <div id="shopList"></div>
-      <div class="flex-row mt-12">
-        <button class="btn btn-ghost btn-sm" onclick="clearDoneShop()">🗑️ Usuń kupione</button>
-        <button class="btn btn-danger btn-sm" onclick="clearAllShop()">Wyczyść wszystko</button>
-      </div>
-    </div>
-  </div>
+  <!-- SHOPPING tab removed – merged into Lista/Tasks with Google Tasks categories -->
 
   <!-- CHORES -->
   <div id="tab-chores" class="tab-panel">
@@ -1082,7 +1068,7 @@ function switchTab(id){
   if(id==='shopping')renderShop();
   if(id==='chores')renderChores();
   if(id==='calendar')renderCalendar();
-  if(id==='tasks')loadTaskLists();
+  if(id==='tasks'){taskListIds=safeLoad('taskListIds',{});if(isSignedIn&&!taskListIds[activeCat])loadTaskLists();else if(isSignedIn)loadTasks();}
   if(id==='gemini')geminiOnOpen();
 }
 
@@ -2689,9 +2675,9 @@ async function addTask(){
     setGS('err','Brak tokenu — zaloguj ponownie');
     return;
   }
-  const listId=document.getElementById('taskListSel').value;
+  const listId=taskListIds[activeCat];
   if(!listId){
-    setGS('err','Nie wybrano listy zadań');
+    setGS('err','Lista nie gotowa — zaloguj ponownie');
     return;
   }
   try{
@@ -2741,20 +2727,14 @@ function startAutoSync(){
   },60000); // Check every minute
 }
 
-/* === SHOPPING === */
-let shopFilter='Wszystkie';
-function setShopFilter(cat){shopFilter=cat;document.querySelectorAll('.cat-chip').forEach(c=>c.classList.toggle('active',c.dataset.cat===cat));renderShop();}
-function addShopItem(){const inp=document.getElementById('shopInput');const name=inp.value.trim();if(!name)return;const items=safeLoad('shopping',[]);items.push({id:Date.now(),name,category:document.getElementById('shopCatSel').value,done:false});safeSave('shopping',items);inp.value='';renderShop();updateStats();}
-function toggleShop(id){const items=safeLoad('shopping',[]);const i=items.findIndex(x=>x.id===id);if(i!==-1){items[i].done=!items[i].done;safeSave('shopping',items);}renderShop();updateStats();}
-function deleteShop(id){safeSave('shopping',safeLoad('shopping',[]).filter(x=>x.id!==id));renderShop();updateStats();}
-function clearDoneShop(){safeSave('shopping',safeLoad('shopping',[]).filter(x=>!x.done));renderShop();updateStats();}
-function clearAllShop(){if(!confirm('Wyczyścić całą listę zakupów?'))return;safeSave('shopping',[]);renderShop();updateStats();}
-function renderShop(){
-  let items=safeLoad('shopping',[]);
-  if(shopFilter!=='Wszystkie')items=items.filter(x=>x.category===shopFilter);
-  const all=[...items.filter(x=>!x.done),...items.filter(x=>x.done)];
-  document.getElementById('shopList').innerHTML=all.length?all.map(x=>`<div class="shop-item${x.done?' done':''}"><div class="shop-check" onclick="toggleShop(${x.id})">${x.done?'✓':''}</div><span class="shop-name">${esc(x.name)}</span><span class="shop-cat-badge">${esc(x.category)}</span><button class="shop-del" onclick="deleteShop(${x.id})">×</button></div>`).join(''):`<div class="empty-state"><span class="ei">🛒</span>Lista pusta</div>`;
-}
+/* === SHOPPING (legacy stubs – merged into Google Tasks "Zakupy") === */
+function setShopFilter(){}
+function addShopItem(){}
+function toggleShop(){}
+function deleteShop(){}
+function clearDoneShop(){}
+function clearAllShop(){}
+function renderShop(){}
 
 /* === CHORES === */
 let choreFilter='Wszyscy';
@@ -3324,32 +3304,62 @@ async function fetchCalEvents(){
   }
 }
 
-async function loadTaskLists(){
-  if(!isSignedIn){
-    console.log('loadTaskLists: not signed in');
-    return;
-  }
-  
+/* === TASK CATEGORIES === */
+const TASK_CATEGORIES=[
+  {name:'Zakupy',emoji:'🛒',cls:'cat-zakupy'},
+  {name:'Dom',emoji:'🏠',cls:'cat-dom'},
+  {name:'Szkoła',emoji:'📚',cls:'cat-szkola'}
+];
+let activeCat='Zakupy';
+let taskListIds=safeLoad('taskListIds',{});
+
+function switchTaskCat(cat){
+  activeCat=cat;
+  document.querySelectorAll('.task-cat-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
+  loadTasks();
+}
+
+async function clearDoneTasks(){
+  if(!isSignedIn){showToast('Zaloguj się najpierw','error');return;}
+  const lid=taskListIds[activeCat];
+  if(!lid)return;
   const token=safeLoad('lastOAuthToken',null);
   if(!token)return;
-  
   try{
-    const r=await fetch('https://www.googleapis.com/tasks/v1/users/@me/lists?maxResults=20',{
-      headers:{'Authorization':`Bearer ${token}`}
+    await fetch(`https://www.googleapis.com/tasks/v1/lists/${encodeURIComponent(lid)}/clear`,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}
     });
-    
-    if(!r.ok){
-      await handleApiError(r,'loadTaskLists');
-      return;
-    }
+    await loadTasks();
+    showToast('✅ Ukończone usunięte','success');
+  }catch(e){console.warn('clearDoneTasks',e);}
+}
+
+async function loadTaskLists(){
+  if(!isSignedIn){console.log('loadTaskLists: not signed in');return;}
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token)return;
+  try{
+    const r=await fetch('https://www.googleapis.com/tasks/v1/users/@me/lists?maxResults=100',{headers:{'Authorization':`Bearer ${token}`}});
+    if(!r.ok){await handleApiError(r,'loadTaskLists');return;}
     const data=await r.json();
-    const lists=data.items||[];
-    const sel=document.getElementById('taskListSel');
-    if(sel){
-      sel.innerHTML=lists.map(l=>`<option value="${esc(l.id)}">${esc(l.title)}</option>`).join('');
-      if(lists.length)loadTasks();
+    const existing=data.items||[];
+    existing.forEach(l=>{if(TASK_CATEGORIES.some(c=>c.name===l.title))taskListIds[l.title]=l.id;});
+    for(const cat of TASK_CATEGORIES){
+      if(!taskListIds[cat.name]){
+        try{
+          const cr=await fetch('https://www.googleapis.com/tasks/v1/users/@me/lists',{
+            method:'POST',
+            headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+            body:JSON.stringify({title:cat.name})
+          });
+          if(cr.ok){const created=await cr.json();taskListIds[cat.name]=created.id;console.log('✓ Created task list:',cat.name);}
+        }catch(e){console.warn('Create list failed',cat.name,e);}
+      }
     }
-    console.log('✓ Task lists:',lists.length);
+    safeSave('taskListIds',taskListIds);
+    console.log('✓ Task lists ready:',Object.keys(taskListIds).join(', '));
+    loadTasks();
   }catch(e){
     console.warn('loadTaskLists error',e);
     setGS('err','Błąd lista zadań');
@@ -3357,45 +3367,38 @@ async function loadTaskLists(){
 }
 
 async function loadTasks(){
-  if(!isSignedIn) return;
-  
+  if(!isSignedIn)return;
   const token=safeLoad('lastOAuthToken',null);
   if(!token)return;
-  
-  const lid=document.getElementById('taskListSel')?.value;
-  if(!lid)return;
-  
+  const lid=taskListIds[activeCat];
+  if(!lid){
+    const el=document.getElementById('taskListItems');
+    if(el)el.innerHTML='<div class="empty-state"><span class="ei">⏳</span>Synchronizuję listy…</div>';
+    return;
+  }
   try{
     const url=new URL(`https://www.googleapis.com/tasks/v1/lists/${encodeURIComponent(lid)}/tasks`);
     url.searchParams.append('maxResults','100');
     url.searchParams.append('showCompleted','true');
-    
-    const r=await fetch(url.toString(),{
-      headers:{'Authorization':`Bearer ${token}`}
-    });
-    
-    if(!r.ok){
-      await handleApiError(r,'loadTasks');
-      return;
-    }
-    
+    const r=await fetch(url.toString(),{headers:{'Authorization':`Bearer ${token}`}});
+    if(!r.ok){await handleApiError(r,'loadTasks');return;}
     const data=await r.json();
     const items=data.items||[];
     window._taskCount=items.filter(t=>t.status!=='completed').length;
     updateStats();
-    
     const el=document.getElementById('taskListItems');
     if(el){
-      el.innerHTML=items.length?items.map(t=>`<div class="task-item${t.status==='completed'?' done':''}" onclick="toggleTask('${esc(lid)}','${esc(t.id)}','${t.status==='completed'?'needsAction':'completed'}')">\n<div class="task-check">${t.status==='completed'?'✓':''}</div>\n<span class="task-title">${esc(t.title)}</span>\n${t.due?`<span class="task-due">${new Date(t.due).toLocaleDateString('pl-PL')}</span>`:''}\n</div>`).join(''):`<div class="empty-state"><span class="ei">✅</span>Brak zadań</div>`;
+      el.innerHTML=items.length
+        ?items.map(t=>`<div class="task-item${t.status==='completed'?' done':''}" onclick="toggleTask('${esc(lid)}','${esc(t.id)}','${t.status==='completed'?'needsAction':'completed'}')"><div class="task-check">${t.status==='completed'?'✓':''}</div><span class="task-title">${esc(t.title)}</span>${t.due?`<span class="task-due">${new Date(t.due).toLocaleDateString('pl-PL')}</span>`:''}</div>`).join('')
+        :`<div class="empty-state"><span class="ei">✅</span>Lista ${esc(activeCat)} jest pusta</div>`;
     }
-    console.log('✓ Tasks:',items.length);
+    console.log('✓ Tasks ['+activeCat+']:',items.length);
     checkTaskDeadlines(items);
   }catch(e){
     console.warn('loadTasks error',e);
     setGS('err','Błąd zadania');
   }
 }
-
 async function toggleTask(listId,taskId,newStatus){
   if(!isSignedIn){
     showToast('Zaloguj się najpierw','error');
