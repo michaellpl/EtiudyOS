@@ -1228,29 +1228,39 @@ function suggestOutfit(current){
     items.push({e:'🎿',t:'Czapka zimowa',c:'cold'});
     items.push({e:'👖',t:'Ciepłe spodnie',c:''});
   }else if(temp<0){
+    // Below freezing: full winter gear incl. scarf
     headline='Mróz — ciepło się ubierz.';
     items.push({e:'🧥',t:'Kurtka zimowa',c:'cold'});
+    items.push({e:'🧣',t:'Szalik',c:'cold'});
     items.push({e:'🎿',t:'Czapka',c:'cold'});
     items.push({e:'🧤',t:'Rękawiczki',c:'cold'});
-  }else if(temp<7){
-    headline='Chłodno — potrzebna kurtka.';
+  }else if(temp<4){
+    // Cold but above freezing: jacket + cap, no scarf yet
+    headline='Zimno — kurtka i czapka.';
     items.push({e:'🧥',t:'Kurtka',c:'cold'});
-    items.push({e:'🧣',t:'Szalik',c:''});
     items.push({e:'🎿',t:'Czapka',c:''});
-  }else if(temp<13){
-    headline='Prochłodno — bluza i lekka kurtka.';
+    items.push({e:'👖',t:'Długie spodnie',c:''});
+  }else if(temp<10){
+    // 4–10°C: jacket and hoodie, no scarf, no cap
+    headline='Chłodno — kurtka i bluza.';
+    items.push({e:'🧥',t:'Kurtka',c:''});
+    items.push({e:'👕',t:'Bluza',c:''});
+    items.push({e:'👖',t:'Długie spodnie',c:''});
+  }else if(temp<15){
+    // 10–15°C (the famous 11°C zone): light jacket or hoodie only
+    headline='Przyjemnie — wystarczy bluza lub lekka kurtka.';
     items.push({e:'🧥',t:'Lekka kurtka',c:''});
     items.push({e:'👕',t:'Bluza',c:''});
     items.push({e:'👖',t:'Długie spodnie',c:''});
-  }else if(temp<18){
+  }else if(temp<20){
     headline='Miło — bluza wystarczy.';
     items.push({e:'👕',t:'Bluza',c:''});
     items.push({e:'👖',t:'Długie spodnie',c:''});
-  }else if(temp<24){
+  }else if(temp<25){
     headline='Ciepło — T-shirt i długie spodnie.';
     items.push({e:'👕',t:'T-shirt',c:''});
     items.push({e:'👖',t:'Długie spodnie',c:''});
-  }else if(temp<28){
+  }else if(temp<29){
     headline='Ciepło — krótkie rękawki i szorty.';
     items.push({e:'👕',t:'T-shirt',c:'hot'});
     items.push({e:'🩳',t:'Szorty',c:'hot'});
