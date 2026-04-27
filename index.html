@@ -276,6 +276,25 @@ html,body{
 .tool-btn{padding:8px 13px;border-radius:var(--r-pill);border:none;background:var(--surface2);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
 .tool-btn:hover{background:#dde8f5;}
 .tool-btn.active-tool{background:var(--dark);color:#fff;}
+.tool-btn.tool-send-dad{background:linear-gradient(135deg,#4a7ff5,#6b95ff);color:#fff;}
+.tool-btn.tool-send-mom{background:linear-gradient(135deg,#f472b6,#fb7185);color:#fff;}
+.tool-btn.tool-send-dad:hover,.tool-btn.tool-send-mom:hover{filter:brightness(1.08);}
+.tool-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ========== EVENT MODAL ========== */
+#eventModal{position:fixed;inset:0;z-index:9990;display:none;align-items:center;justify-content:center;padding:20px;}
+#eventModal.show{display:flex;}
+.evm-backdrop{position:absolute;inset:0;background:rgba(20,30,60,.55);backdrop-filter:blur(6px);}
+.evm-card{position:relative;width:100%;max-width:560px;max-height:92vh;background:var(--surface);border-radius:24px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden;animation:evmIn .25s cubic-bezier(.34,1.56,.64,1);}
+@keyframes evmIn{from{transform:scale(.92) translateY(20px);opacity:0;}to{transform:scale(1) translateY(0);opacity:1;}}
+.evm-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #eef2ff;flex-shrink:0;}
+.evm-title{font-size:18px;font-weight:800;color:var(--dark);}
+.evm-close{background:var(--surface2);border:none;width:36px;height:36px;border-radius:50%;font-size:22px;font-weight:700;color:var(--text-dim);cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;}
+.evm-close:hover{background:#dde8f5;color:var(--text);}
+.evm-body{padding:18px 22px;overflow-y:auto;}
+.evm-footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid #eef2ff;flex-shrink:0;}
+.evm-checkbox-row{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--text);margin-bottom:11px;cursor:pointer;}
+.evm-checkbox-row input{width:18px;height:18px;accent-color:var(--blue);cursor:pointer;}
 input[type="color"]{width:34px;height:34px;border:2px solid #dde6f4;border-radius:50%;cursor:pointer;background:none;padding:0;}
 input[type="range"]{width:76px;accent-color:var(--blue);}
 
@@ -367,6 +386,52 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
 <!-- NIGHT MODE OVERLAY -->
 <div id="nightOverlay" aria-hidden="true"></div>
 
+<!-- EVENT CREATION MODAL -->
+<div id="eventModal" role="dialog" aria-modal="true" aria-labelledby="evmTitleH">
+  <div class="evm-backdrop" onclick="closeEventModal()"></div>
+  <div class="evm-card">
+    <div class="evm-header">
+      <div class="evm-title" id="evmTitleH">📅 Nowe wydarzenie</div>
+      <button class="evm-close" onclick="closeEventModal()" aria-label="Zamknij">×</button>
+    </div>
+    <div class="evm-body">
+      <div class="fgroup">
+        <label class="flbl">Tytuł *</label>
+        <input class="finput" id="evmTitle" placeholder="np. Wizyta u dentysty" maxlength="200">
+      </div>
+      <div class="fgroup">
+        <label class="flbl">Data</label>
+        <input class="finput" id="evmDate" type="date">
+      </div>
+      <label class="evm-checkbox-row" for="evmAllDay">
+        <input type="checkbox" id="evmAllDay" onchange="evmToggleAllDay()"> Cały dzień
+      </label>
+      <div id="evmTimeRow" style="display:flex;gap:10px;">
+        <div class="fgroup" style="flex:1;">
+          <label class="flbl">Od</label>
+          <input class="finput" id="evmStart" type="time" value="09:00">
+        </div>
+        <div class="fgroup" style="flex:1;">
+          <label class="flbl">Do</label>
+          <input class="finput" id="evmEnd" type="time" value="10:00">
+        </div>
+      </div>
+      <div class="fgroup">
+        <label class="flbl">Lokalizacja (opcjonalnie)</label>
+        <input class="finput" id="evmLoc" placeholder="" maxlength="300">
+      </div>
+      <div class="fgroup">
+        <label class="flbl">Opis (opcjonalnie)</label>
+        <textarea class="finput" id="evmDesc" rows="3" maxlength="2000" style="resize:vertical;font-family:'Plus Jakarta Sans',sans-serif;"></textarea>
+      </div>
+    </div>
+    <div class="evm-footer">
+      <button class="btn btn-ghost" onclick="closeEventModal()">Anuluj</button>
+      <button class="btn btn-dark" id="evmSubmitBtn" onclick="submitEventModal()">✓ Utwórz</button>
+    </div>
+  </div>
+</div>
+
 <!-- KIOSK TRACKER: hidden camera elements -->
 <video id="kioskCam" autoplay muted playsinline style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px;" aria-hidden="true"></video>
 <canvas id="kioskCanvas" style="display:none;" aria-hidden="true"></canvas>
@@ -421,6 +486,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
           <button class="quick-btn" onclick="switchTab('tasks');switchTaskCat('Szkoła');document.getElementById('newTaskInput').focus();">📚 Szkoła</button>
           <button class="quick-btn" onclick="switchTab('chores');document.getElementById('choreInput').focus();">➕ Obowiązek</button>
           <button class="quick-btn" onclick="switchTab('calendar');">📅 Kalendarz</button>
+          <button class="quick-btn" onclick="openEventModal();">📆 Nowe wydarzenie</button>
           <button class="quick-btn" onclick="if(isSignedIn)fetchCalEvents();else googleSignIn();">🔄 Synchronizuj</button>
           <button class="quick-btn" onclick="startVoiceCommand();">🎤 Głos</button>
           <button class="quick-btn" onclick="switchTab('settings');">⚙️ Ustawienia</button>
@@ -485,7 +551,10 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <div id="calGrid"></div>
       </div>
       <div class="card" id="calEvCard">
-        <div id="calEventTitle" style="font-size:16px;font-weight:800;margin-bottom:12px;">Wybierz dzień</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
+          <div id="calEventTitle" style="font-size:16px;font-weight:800;">Wybierz dzień</div>
+          <button class="btn btn-dark btn-sm" onclick="openEventModal(calSelected)">+ Nowe</button>
+        </div>
         <div id="calEventList"><div class="empty-state"><span class="ei">📅</span>Brak wydarzeń</div></div>
       </div>
     </div>
@@ -564,6 +633,8 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <input type="range" id="brushSize" min="2" max="40" value="6" title="Rozmiar" onchange="updateTool()">
         <button class="tool-btn" onclick="clearDoodle()">🗑️ Wyczyść</button>
         <button class="tool-btn" onclick="saveDoodle()">💾 Zapisz</button>
+        <button class="tool-btn tool-send-dad" id="sendDoodleDadBtn" onclick="sendDoodleToParent('dad')">👨 Wyślij do taty</button>
+        <button class="tool-btn tool-send-mom" id="sendDoodleMomBtn" onclick="sendDoodleToParent('mom')">👩 Wyślij do mamy</button>
       </div>
       <canvas id="doodleCanvas"></canvas>
     </div>
@@ -676,6 +747,12 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <button class="btn btn-ghost btn-sm" onclick="downloadPhotosZip('yesterday')">📥 ZIP zdjęcia wczoraj</button>
         <button class="btn btn-dark btn-sm" onclick="sendDailySummaryEmail(true)">📧 Wyślij email teraz</button>
       </div>
+    </div>
+    <div class="card gap-card">
+      <div class="stitle">📨 Adresy rodziców (wysyłka rysunków)</div>
+      <p style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:12px;">Adresy używane przez przyciski „Wyślij do taty" i „Wyślij do mamy" w sekcji Rysuj. Wysyłka odbywa się przez konto Google zalogowane w aplikacji.</p>
+      <div class="fgroup"><label class="flbl">👨 Email taty</label><input class="finput" id="dadEmail" type="email" placeholder="np. tata@gmail.com" oninput="saveSettings()"></div>
+      <div class="fgroup"><label class="flbl">👩 Email mamy</label><input class="finput" id="momEmail" type="email" placeholder="np. mama@gmail.com" oninput="saveSettings()"></div>
     </div>
     <div class="card gap-card">
       <div class="stitle">Dane aplikacji</div>
@@ -1102,7 +1179,7 @@ function updateClock(){
   document.getElementById('clockDateLine').textContent=`${DAYS_PL[now.getDay()]}, ${now.getDate()} ${MONTHS_GEN[now.getMonth()]} ${now.getFullYear()}`;
   const hr=now.getHours();
   document.getElementById('clockGreeting').textContent=hr>=5&&hr<12?'Dzień dobry! 👋':hr<18?'Dobry wieczór! ☀️':hr<22?'Dobry wieczór! 🌆':'Dobranoc! 🌙';
-  if(now.getDate()!==lastDay){lastDay=now.getDate();checkBirthdays();updateStats();updateCurrentLesson();renderCountdown();if(activeTab==='timetable')renderTimetable();}
+  if(now.getDate()!==lastDay){lastDay=now.getDate();checkBirthdays();updateStats();updateCurrentLesson();renderCountdown();renderJoke();if(activeTab==='timetable')renderTimetable();}
   checkDailyOperations();
   applyNightMode();
 }
@@ -1704,7 +1781,10 @@ const JOKES = [
 function renderJoke(){
   const el=document.getElementById('jokeDayText');
   if(!el) return;
-  const dayOfYear=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/(1000*60*60*24));
+  const now=new Date();
+  // Key by calendar day (Jan 1 = day 1) so the joke changes exactly at midnight
+  const start=new Date(now.getFullYear(),0,1);
+  const dayOfYear=Math.round((now-start)/(1000*60*60*24));
   const idx=dayOfYear % JOKES.length;
   el.textContent=JOKES[idx];
 }
@@ -2861,6 +2941,215 @@ function updTool(){if(!dCtx)return;const sz=Number(document.getElementById('brus
 function clearDoodle(){if(!dCtx)return;const c=document.getElementById('doodleCanvas');dCtx.globalCompositeOperation='source-over';dCtx.fillStyle='#fff';dCtx.fillRect(0,0,c.width,c.height);updTool();}
 function saveDoodle(){const l=document.createElement('a');l.download='rysunek.png';l.href=document.getElementById('doodleCanvas').toDataURL();l.click();}
 
+/* === EVENT CREATION MODAL === */
+function openEventModal(prefillDate){
+  if(!isSignedIn){
+    showToast('Zaloguj się przez Google najpierw','error');
+    return;
+  }
+  const modal=document.getElementById('eventModal');
+  if(!modal)return;
+  // Default date: prefillDate (Date or YYYY-MM-DD), or selected calendar day, or today
+  let d;
+  if(prefillDate instanceof Date) d=prefillDate;
+  else if(calSelected instanceof Date) d=calSelected;
+  else d=new Date();
+  // Build local YYYY-MM-DD (avoid toISOString timezone shift)
+  const isoDate=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  // Sensible default times: next round hour, 1-hour duration
+  const now=new Date();
+  const nextH=Math.min(22,now.getHours()+1);
+  const startStr=`${String(nextH).padStart(2,'0')}:00`;
+  const endStr=`${String(Math.min(23,nextH+1)).padStart(2,'0')}:00`;
+  document.getElementById('evmTitle').value='';
+  document.getElementById('evmDate').value=isoDate;
+  document.getElementById('evmAllDay').checked=false;
+  document.getElementById('evmStart').value=startStr;
+  document.getElementById('evmEnd').value=endStr;
+  document.getElementById('evmLoc').value='';
+  document.getElementById('evmDesc').value='';
+  document.getElementById('evmTimeRow').style.display='flex';
+  modal.classList.add('show');
+  setTimeout(()=>{const t=document.getElementById('evmTitle');if(t)t.focus();},80);
+}
+function closeEventModal(){
+  const m=document.getElementById('eventModal');
+  if(m)m.classList.remove('show');
+}
+function evmToggleAllDay(){
+  const cb=document.getElementById('evmAllDay');
+  document.getElementById('evmTimeRow').style.display=cb.checked?'none':'flex';
+}
+async function submitEventModal(){
+  const title=document.getElementById('evmTitle').value.trim();
+  if(!title){showToast('Podaj tytuł wydarzenia','error');return;}
+  const date=document.getElementById('evmDate').value;
+  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){showToast('Podaj prawidłową datę','error');return;}
+  const allDay=document.getElementById('evmAllDay').checked;
+  const loc=document.getElementById('evmLoc').value.trim();
+  const desc=document.getElementById('evmDesc').value.trim();
+
+  if(!isSignedIn){showToast('Zaloguj się przez Google najpierw','error');return;}
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token){showToast('Brak tokena - zaloguj się ponownie','error');return;}
+
+  const body={summary:title};
+  if(loc)body.location=loc;
+  if(desc)body.description=desc;
+
+  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Warsaw';
+  if(allDay){
+    body.start={date};
+    // Google Calendar all-day events: end date is exclusive (next day)
+    const [yy,mm,dd]=date.split('-').map(Number);
+    const next=new Date(yy,mm-1,dd);
+    next.setDate(next.getDate()+1);
+    const nextStr=`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`;
+    body.end={date:nextStr};
+  }else{
+    const startT=document.getElementById('evmStart').value||'09:00';
+    const endT=document.getElementById('evmEnd').value||'10:00';
+    if(!/^\d{2}:\d{2}$/.test(startT)||!/^\d{2}:\d{2}$/.test(endT)){showToast('Nieprawidłowy czas','error');return;}
+    if(endT<=startT){showToast('Czas zakończenia musi być po rozpoczęciu','error');return;}
+    // Naive datetime + timeZone -- Google interprets as local time in that zone
+    body.start={dateTime:`${date}T${startT}:00`,timeZone:tz};
+    body.end={dateTime:`${date}T${endT}:00`,timeZone:tz};
+  }
+
+  const btn=document.getElementById('evmSubmitBtn');
+  if(btn){btn.disabled=true;btn.textContent='Tworzę...';}
+  try{
+    const r=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    if(r.status===401){
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      showToast('Sesja wygasła - zaloguj się ponownie','error');
+      return;
+    }
+    if(r.status===403){
+      showToast('🔒 Brak uprawnień - zaloguj ponownie z nowym scope','error',6000);
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      return;
+    }
+    if(!r.ok){
+      const errTxt=await r.text();
+      console.warn('createEvent failed',r.status,errTxt);
+      showToast('Błąd tworzenia wydarzenia','error');
+      return;
+    }
+    showToast('✅ Wydarzenie utworzone','success');
+    closeEventModal();
+    // Refresh calendar so the new event appears immediately
+    if(typeof fetchCalEvents==='function')fetchCalEvents();
+  }catch(e){
+    console.warn('createEvent error',e);
+    showToast('Błąd: '+(e.message||'połączenia'),'error');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='✓ Utwórz';}
+  }
+}
+
+/* === SEND DOODLE TO PARENT (Gmail attachment) === */
+async function sendDoodleToParent(who){
+  if(who!=='dad'&&who!=='mom'){return;}
+  if(!isSignedIn){showToast('Zaloguj się przez Google najpierw','error');return;}
+  const settings=safeLoad('appSettings',{});
+  const recipient=((who==='dad'?settings.dadEmail:settings.momEmail)||'').trim().replace(/[\r\n]+/g,'');
+  const labelGen=who==='dad'?'taty':'mamy';
+  const labelNom=who==='dad'?'Tato':'Mamo';
+  const labelDir=who==='dad'?'taty':'mamy';
+  if(!recipient){
+    showToast(`Brak adresu - ustaw email ${labelDir} w Ustawieniach`,'error',5000);
+    return;
+  }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)){
+    showToast('Nieprawidłowy adres email','error');
+    return;
+  }
+  const canvas=document.getElementById('doodleCanvas');
+  if(!canvas){showToast('Brak rysunku','error');return;}
+  const token=safeLoad('lastOAuthToken',null);
+  if(!token){showToast('Brak tokena - zaloguj się ponownie','error');return;}
+
+  const btnId=who==='dad'?'sendDoodleDadBtn':'sendDoodleMomBtn';
+  const btn=document.getElementById(btnId);
+  const origText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='⏳ Wysyłam...';}
+
+  try{
+    const dataUrl=canvas.toDataURL('image/png');
+    const base64Img=dataUrl.split(',')[1];
+    if(!base64Img){throw new Error('Pusty rysunek');}
+    const dateStr=new Date().toLocaleString('pl-PL');
+    const subject=`Rysunek od dzieci - ${dateStr}`;
+    const filename=`rysunek_${Date.now()}.png`;
+    const boundary='----EtiudyOSBoundary'+Date.now()+Math.random().toString(36).slice(2,8);
+
+    const html=`<!DOCTYPE html><html><body style="font-family:sans-serif;padding:20px;color:#111;max-width:540px;margin:0 auto;">\n<h2 style="color:#4a7ff5;margin-bottom:4px;">🎨 Rysunek od dzieci</h2>\n<p style="color:#374151;">Cześć ${esc(labelNom)}! Dzieci wysłały Ci rysunek z EtiudyOS — w załączniku.</p>\n<p style="color:#9ca3af;font-size:12px;margin-top:18px;">EtiudyOS · ${esc(dateStr)}</p>\n</body></html>`;
+
+    const rawMsg=[
+      `To: ${recipient}`,
+      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/html; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      btoa(unescape(encodeURIComponent(html))),
+      ``,
+      `--${boundary}`,
+      `Content-Type: image/png; name="${filename}"`,
+      `Content-Disposition: attachment; filename="${filename}"`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      base64Img,
+      ``,
+      `--${boundary}--`
+    ].join('\r\n');
+
+    // rawMsg is all ASCII (boundaries, headers, base64 bodies) so plain btoa works
+    const encoded=btoa(rawMsg).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+    const r=await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify({raw:encoded})
+    });
+
+    if(r.status===401){
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      showToast('Sesja wygasła - zaloguj się ponownie','error');
+      return;
+    }
+    if(r.status===403){
+      showToast('🔒 Brak uprawnień Gmail - zaloguj ponownie','error',6000);
+      isSignedIn=false;
+      safeSave('lastOAuthToken',null);
+      return;
+    }
+    if(!r.ok){
+      const errTxt=await r.text();
+      console.warn('sendDoodle failed',r.status,errTxt);
+      showToast('Błąd wysyłania rysunku','error');
+      return;
+    }
+    showToast(`✅ Rysunek wysłany do ${labelGen}!`,'success');
+  }catch(e){
+    console.warn('sendDoodle error',e);
+    showToast('Błąd: '+(e.message||'wysyłki'),'error');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=origText;}
+  }
+}
+
 /* === SETTINGS === */
 function sanitizeClientId(raw){
   // Strips accidental copy-paste artefacts:
@@ -2868,12 +3157,14 @@ function sanitizeClientId(raw){
   //   https://xxx.apps.googleusercontent.com,  → xxx.apps.googleusercontent.com
   return (raw||'').trim().replace(/^https?:\/\//,'').replace(/[,/\s]+$/,'');
 }
-function saveSettings(){const s=safeLoad('appSettings',{});s.googleClientId=sanitizeClientId(document.getElementById('gClientId')?.value||'');s.kioskEmail=(document.getElementById('kioskEmail')?.value||'').trim();s.geminiApiKey=(document.getElementById('geminiApiKey')?.value||'').trim();s.cameras=Array.from(document.querySelectorAll('.cam-row')).map(r=>({name:r.querySelector('.cam-name-inp')?.value?.trim()||'',url:r.querySelector('.cam-url-inp')?.value?.trim()||''}));safeSave('appSettings',s);renderCameras();}
+function saveSettings(){const s=safeLoad('appSettings',{});s.googleClientId=sanitizeClientId(document.getElementById('gClientId')?.value||'');s.kioskEmail=(document.getElementById('kioskEmail')?.value||'').trim();s.geminiApiKey=(document.getElementById('geminiApiKey')?.value||'').trim();s.dadEmail=(document.getElementById('dadEmail')?.value||'').trim().replace(/[\r\n]+/g,'');s.momEmail=(document.getElementById('momEmail')?.value||'').trim().replace(/[\r\n]+/g,'');s.cameras=Array.from(document.querySelectorAll('.cam-row')).map(r=>({name:r.querySelector('.cam-name-inp')?.value?.trim()||'',url:r.querySelector('.cam-url-inp')?.value?.trim()||''}));safeSave('appSettings',s);renderCameras();}
 function renderSettings(){
   const s=safeLoad('appSettings',{});
   const g=document.getElementById('gClientId');if(g)g.value=s.googleClientId||'';
   const gak=document.getElementById('geminiApiKey');if(gak)gak.value=s.geminiApiKey||'';
   const ke=document.getElementById('kioskEmail');if(ke)ke.value=s.kioskEmail||'';
+  const de=document.getElementById('dadEmail');if(de)de.value=s.dadEmail||'';
+  const me=document.getElementById('momEmail');if(me)me.value=s.momEmail||'';
   const cams=s.cameras||[{name:'',url:''},{name:'',url:''}];
   document.getElementById('camInputs').innerHTML=cams.map((c,i)=>`<div class="cam-row" style="margin-bottom:12px;"><div class="fgroup"><label class="flbl">Kamera ${i+1} – Nazwa</label><input class="finput cam-name-inp" value="${esc(c.name)}" placeholder="np. Wejście" oninput="saveSettings()"></div><div class="fgroup"><label class="flbl">Kamera ${i+1} – URL</label><input class="finput cam-url-inp" value="${esc(c.url)}" placeholder="https://…" oninput="saveSettings()"></div></div>`).join('');
   renderBDList();
