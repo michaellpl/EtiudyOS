@@ -280,7 +280,6 @@ html,body{
 .tool-btn.tool-send-mom{background:linear-gradient(135deg,#f472b6,#fb7185);color:#fff;}
 .tool-btn.tool-send-dad:hover,.tool-btn.tool-send-mom:hover{filter:brightness(1.08);}
 .tool-btn:disabled{opacity:.5;cursor:not-allowed;}
-#doodleCanvas.emoji-mode{cursor:cell;}
 
 /* ========== EMOJI PICKER ========== */
 #emojiPickerPanel{display:none;background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow-md);padding:14px;margin-bottom:10px;border:1px solid #eef2ff;}
@@ -290,8 +289,28 @@ html,body{
 .emoji-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:4px;margin-bottom:4px;}
 .emoji-pick{background:transparent;border:none;font-size:26px;line-height:1;padding:8px 0;border-radius:var(--r-sm);cursor:pointer;transition:all .12s;}
 .emoji-pick:hover,.emoji-pick:active{background:var(--surface2);transform:scale(1.15);}
-.emoji-current-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#fef3c7;border-radius:var(--r-pill);font-size:13px;font-weight:700;color:#92400e;margin-left:4px;}
-.emoji-current-badge .emoji-current-icon{font-size:18px;}
+
+/* ========== EMOJI OBJECTS (movable, pinch-zoom, rotate) ========== */
+.doodle-stage{position:relative;display:block;}
+#doodleEmojiLayer{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:var(--r-sm);}
+.doodle-emoji{
+  position:absolute;top:0;left:0;
+  font-size:60px;line-height:1;
+  cursor:grab;user-select:none;
+  touch-action:none;
+  pointer-events:auto;
+  transform-origin:center;
+  will-change:transform;
+  /* `transform` is fully driven from JS; no transition so dragging feels 1:1 */
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.15));
+  padding:6px;
+}
+.doodle-emoji:active{cursor:grabbing;}
+.doodle-emoji.touched{
+  outline:2px dashed #4a7ff5;outline-offset:-2px;border-radius:8px;
+  background:rgba(74,127,245,.06);
+}
+.doodle-emoji-help{font-size:12px;font-weight:600;color:var(--text-dim);margin:8px 0 6px;line-height:1.4;}
 
 /* ========== EVENT MODAL ========== */
 #eventModal{position:fixed;inset:0;z-index:9990;display:none;align-items:center;justify-content:center;padding:20px;}
@@ -641,17 +660,20 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
       <div id="doodleTools">
         <button class="tool-btn active-tool" id="toolPen" onclick="setTool('pen')">✏️ Rysuj</button>
         <button class="tool-btn" id="toolEraser" onclick="setTool('eraser')">🧹 Gumka</button>
-        <button class="tool-btn" id="toolEmoji" onclick="toggleEmojiPicker()">😀 Emoji</button>
+        <button class="tool-btn" id="toolEmoji" onclick="toggleEmojiPicker()">😀 Dodaj emoji</button>
         <input type="color" id="brushColor" value="#1a1a2e" title="Kolor" onchange="updTool()">
-        <input type="range" id="brushSize" min="2" max="40" value="6" title="Rozmiar" onchange="updTool()">
+        <input type="range" id="brushSize" min="2" max="40" value="6" title="Rozmiar pędzla" onchange="updTool()">
         <button class="tool-btn" onclick="clearDoodle()">🗑️ Wyczyść</button>
         <button class="tool-btn" onclick="saveDoodle()">💾 Zapisz</button>
         <button class="tool-btn tool-send-dad" id="sendDoodleDadBtn" onclick="sendDoodleToParent('dad')">👨 Wyślij do taty</button>
         <button class="tool-btn tool-send-mom" id="sendDoodleMomBtn" onclick="sendDoodleToParent('mom')">👩 Wyślij do mamy</button>
-        <span id="emojiCurrentBadge" class="emoji-current-badge" style="display:none;">Stempel: <span class="emoji-current-icon" id="emojiCurrentIcon"></span></span>
       </div>
       <div id="emojiPickerPanel" role="region" aria-label="Wybierz emoji"></div>
-      <canvas id="doodleCanvas"></canvas>
+      <div id="doodleEmojiHelp" class="doodle-emoji-help" style="display:none;">👆 Przeciągnij paluszkiem żeby przesunąć &nbsp;·&nbsp; ✌️ Dwa palce żeby powiększać i obracać &nbsp;·&nbsp; 👆👆 Dwa szybkie dotknięcia żeby usunąć</div>
+      <div id="doodleStage" class="doodle-stage">
+        <canvas id="doodleCanvas"></canvas>
+        <div id="doodleEmojiLayer"></div>
+      </div>
     </div>
   </div>
 
@@ -3080,7 +3102,7 @@ function renderCameras(){
 }
 
 /* === DOODLE === */
-let dInited=false,dCtx,isDrawing=false,lX=0,lY=0,dTool='pen',currentEmoji='⭐';
+let dInited=false,dCtx,isDrawing=false,lX=0,lY=0,dTool='pen';
 
 // Curated kid-friendly emoji palette grouped by category
 const DOODLE_EMOJI_CATEGORIES=[
@@ -3091,47 +3113,70 @@ const DOODLE_EMOJI_CATEGORIES=[
   ['Zabawa',['🎈','🎁','🎉','🎊','👑','🏆','⚽','🏀','🚀','🎨','🎵','🎮','🌸','🌺','🌻','🍀']]
 ];
 
+/* === EMOJI OBJECT MODEL ===
+ * Each emoji on canvas is an object: { id, char, x, y, size, rotation }
+ *  - x, y: center position in DISPLAY pixels (CSS px relative to stage)
+ *  - size: CSS font-size in px
+ *  - rotation: radians
+ * Stored in display coords (not buffer coords) so DOM transforms map 1:1.
+ * For save/send, we rasterize onto a flattened canvas using buffer-coord
+ * scaling so the export resolution matches the canvas drawing buffer.
+ */
+let emojiObjects=[];
+let _nextEmojiId=1;
+// Per-emoji gesture state during a touch interaction
+const _emojiGestures=new Map(); // emojiId -> { pointers: Map(pointerId, {x,y}), startObj, type, initDist?, initAngle? }
+// Tap tracking for double-tap-to-delete (must be on the SAME emoji, no drag)
+let _lastTap={id:null,t:0};
+let _emojiPointerMoved=new Map(); // pointerId -> bool, did this pointer drag enough to count as a drag?
+
 function initDoodle(){
   const canvas=document.getElementById('doodleCanvas');if(!canvas)return;
   const p=document.getElementById('tab-doodle');
-  if(!dInited){canvas.width=p.clientWidth-40;canvas.height=Math.max(380,window.innerHeight-220);dCtx=canvas.getContext('2d');dCtx.fillStyle='#fff';dCtx.fillRect(0,0,canvas.width,canvas.height);dInited=true;canvas.addEventListener('pointerdown',dS);canvas.addEventListener('pointermove',dM);canvas.addEventListener('pointerup',dE);canvas.addEventListener('pointercancel',dE);buildEmojiPicker();}
+  if(!dInited){
+    canvas.width=p.clientWidth-40;
+    canvas.height=Math.max(380,window.innerHeight-220);
+    dCtx=canvas.getContext('2d');
+    dCtx.fillStyle='#fff';dCtx.fillRect(0,0,canvas.width,canvas.height);
+    dInited=true;
+    canvas.addEventListener('pointerdown',dS);
+    canvas.addEventListener('pointermove',dM);
+    canvas.addEventListener('pointerup',dE);
+    canvas.addEventListener('pointercancel',dE);
+    buildEmojiPicker();
+  }
   updTool();
 }
 function dS(e){
+  isDrawing=true;
   const r=e.target.getBoundingClientRect();
-  const x=e.clientX-r.left,y=e.clientY-r.top;
-  if(dTool==='emoji'){
-    // Stamp on tap — no drag drawing
-    stampEmoji(x,y);
-    return;
-  }
-  isDrawing=true;lX=x;lY=y;
+  // Convert display px → canvas buffer px so drawing aligns with the bitmap
+  const sx=e.target.width/r.width, sy=e.target.height/r.height;
+  lX=(e.clientX-r.left)*sx;
+  lY=(e.clientY-r.top)*sy;
   e.target.setPointerCapture(e.pointerId);
 }
-function dM(e){if(!isDrawing||dTool==='emoji')return;const r=e.target.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;dCtx.beginPath();dCtx.moveTo(lX,lY);dCtx.lineTo(x,y);dCtx.stroke();lX=x;lY=y;}
+function dM(e){
+  if(!isDrawing)return;
+  const r=e.target.getBoundingClientRect();
+  const sx=e.target.width/r.width, sy=e.target.height/r.height;
+  const x=(e.clientX-r.left)*sx, y=(e.clientY-r.top)*sy;
+  dCtx.beginPath();dCtx.moveTo(lX,lY);dCtx.lineTo(x,y);dCtx.stroke();
+  lX=x;lY=y;
+}
 function dE(){isDrawing=false;}
 function setTool(t){
   dTool=t;
   document.getElementById('toolPen').classList.toggle('active-tool',t==='pen');
   document.getElementById('toolEraser').classList.toggle('active-tool',t==='eraser');
-  const emojiBtn=document.getElementById('toolEmoji');
-  if(emojiBtn)emojiBtn.classList.toggle('active-tool',t==='emoji');
-  // Show emoji indicator only in emoji mode
-  const badge=document.getElementById('emojiCurrentBadge');
-  if(badge)badge.style.display=t==='emoji'?'inline-flex':'none';
-  // Visual cursor hint on canvas
-  const canvas=document.getElementById('doodleCanvas');
-  if(canvas)canvas.classList.toggle('emoji-mode',t==='emoji');
-  // Closing the picker when leaving emoji mode keeps the toolbar tidy
-  if(t!=='emoji'){
-    const panel=document.getElementById('emojiPickerPanel');
-    if(panel)panel.classList.remove('show');
-  }
+  // Closing the picker when switching to a non-emoji tool keeps the toolbar tidy
+  const panel=document.getElementById('emojiPickerPanel');
+  if(panel)panel.classList.remove('show');
   updTool();
 }
 function updTool(){if(!dCtx)return;const sz=Number(document.getElementById('brushSize').value);if(dTool==='eraser'){dCtx.globalCompositeOperation='destination-out';dCtx.strokeStyle='rgba(0,0,0,1)';dCtx.lineWidth=sz*4;}else{dCtx.globalCompositeOperation='source-over';dCtx.strokeStyle=document.getElementById('brushColor').value;dCtx.lineWidth=sz;}dCtx.lineCap='round';dCtx.lineJoin='round';}
 
-/* === EMOJI STAMPING === */
+/* === EMOJI PICKER (palette) === */
 function buildEmojiPicker(){
   const panel=document.getElementById('emojiPickerPanel');
   if(!panel||panel.dataset.built)return;
@@ -3139,8 +3184,8 @@ function buildEmojiPicker(){
   DOODLE_EMOJI_CATEGORIES.forEach(([title,emojis])=>{
     html+=`<div class="emoji-cat-title">${esc(title)}</div><div class="emoji-grid">`;
     emojis.forEach(em=>{
-      // emoji string is from a hardcoded constant array, so no XSS risk; still escape attribute for safety
-      html+=`<button type="button" class="emoji-pick" onclick="pickEmoji('${em.replace(/'/g,"\\'")}')" aria-label="${esc(em)}">${em}</button>`;
+      // emoji string is from a hardcoded constant array (no XSS risk); still escape attribute for safety
+      html+=`<button type="button" class="emoji-pick" onclick="addEmojiToCanvas('${em.replace(/'/g,"\\'")}')" aria-label="${esc(em)}">${em}</button>`;
     });
     html+='</div>';
   });
@@ -3153,31 +3198,200 @@ function toggleEmojiPicker(){
   buildEmojiPicker();
   panel.classList.toggle('show');
 }
-function pickEmoji(em){
-  currentEmoji=em;
-  const icon=document.getElementById('emojiCurrentIcon');
-  if(icon)icon.textContent=em;
-  setTool('emoji');
-  // Auto-close picker after selection so canvas is fully visible
-  const panel=document.getElementById('emojiPickerPanel');
-  if(panel)panel.classList.remove('show');
+
+/* === EMOJI: CREATE / RENDER / DELETE === */
+function addEmojiToCanvas(char){
+  const stage=document.getElementById('doodleStage');
+  if(!stage)return;
+  const r=stage.getBoundingClientRect();
+  // Spawn near center with small random offset so multiple of the same emoji don't fully overlap
+  const x=r.width/2+(Math.random()-0.5)*80;
+  const y=r.height/2+(Math.random()-0.5)*80;
+  const obj={id:_nextEmojiId++,char,x,y,size:64,rotation:0};
+  emojiObjects.push(obj);
+  renderEmojiEl(obj);
+  // Show help text the first time an emoji is added in this session
+  const help=document.getElementById('doodleEmojiHelp');
+  if(help)help.style.display='block';
 }
-function stampEmoji(x,y){
-  if(!dCtx||!currentEmoji)return;
-  const sz=Number(document.getElementById('brushSize').value)||6;
-  // Map brush size 2..40 → emoji font size ~30..110px
-  const fontSize=Math.round(26+sz*2.1);
-  // Save state, draw, restore — emoji mode shouldn't leak into pen settings
-  dCtx.save();
+function renderEmojiEl(obj){
+  const layer=document.getElementById('doodleEmojiLayer');
+  if(!layer)return;
+  let el=layer.querySelector(`[data-eid="${obj.id}"]`);
+  if(!el){
+    el=document.createElement('div');
+    el.className='doodle-emoji';
+    el.dataset.eid=String(obj.id);
+    el.textContent=obj.char;
+    el.addEventListener('pointerdown',e=>onEmojiPointerDown(e,obj.id));
+    el.addEventListener('pointermove',e=>onEmojiPointerMove(e,obj.id));
+    el.addEventListener('pointerup',e=>onEmojiPointerUp(e,obj.id));
+    el.addEventListener('pointercancel',e=>onEmojiPointerUp(e,obj.id));
+    layer.appendChild(el);
+  }
+  el.style.fontSize=obj.size+'px';
+  // translate-by-center: -50%/-50% centers the box, then translate to (x,y)
+  el.style.transform=`translate(-50%,-50%) translate(${obj.x}px, ${obj.y}px) rotate(${obj.rotation}rad)`;
+}
+function removeEmoji(id){
+  emojiObjects=emojiObjects.filter(e=>e.id!==id);
+  const el=document.querySelector(`#doodleEmojiLayer [data-eid="${id}"]`);
+  if(el)el.remove();
+  _emojiGestures.delete(id);
+}
+function findEmoji(id){return emojiObjects.find(e=>e.id===id);}
+
+/* === EMOJI: GESTURE HANDLERS (drag, pinch-zoom, rotate, double-tap delete) === */
+function _gestureFor(emojiId){
+  let g=_emojiGestures.get(emojiId);
+  if(!g){g={pointers:new Map(),type:null};_emojiGestures.set(emojiId,g);}
+  return g;
+}
+function onEmojiPointerDown(e,emojiId){
+  e.stopPropagation(); // don't let it fall through to canvas pen-draw
+  e.preventDefault();
+  const obj=findEmoji(emojiId);
+  if(!obj)return;
+  const el=e.currentTarget;
+  try{el.setPointerCapture(e.pointerId);}catch{}
+  el.classList.add('touched');
+  _emojiPointerMoved.set(e.pointerId,false);
+  const g=_gestureFor(emojiId);
+  g.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  // Snapshot the object's state at the start of (or transition into) this gesture
+  g.startObj={x:obj.x,y:obj.y,size:obj.size,rotation:obj.rotation};
+  if(g.pointers.size===1){
+    g.type='drag';
+  }else if(g.pointers.size===2){
+    g.type='pinch';
+    const pts=[...g.pointers.values()];
+    const dx=pts[1].x-pts[0].x, dy=pts[1].y-pts[0].y;
+    g.initDist=Math.hypot(dx,dy)||1;
+    g.initAngle=Math.atan2(dy,dx);
+  }
+}
+function onEmojiPointerMove(e,emojiId){
+  const g=_emojiGestures.get(emojiId);
+  if(!g||!g.pointers.has(e.pointerId))return;
+  const prev=g.pointers.get(e.pointerId);
+  const obj=findEmoji(emojiId);
+  if(!obj)return;
+  // Track movement to disqualify a tap
+  if(Math.hypot(e.clientX-prev.x,e.clientY-prev.y)>4){
+    _emojiPointerMoved.set(e.pointerId,true);
+  }
+  // Update pointer position (for pinch math we need current state)
+  g.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+
+  if(g.type==='drag'&&g.pointers.size===1){
+    // Single-finger drag: move emoji by pointer delta vs gesture start
+    const start=[...g.pointers.values()][0]; // current after update
+    // Recompute by total delta from gesture start. We need the start position too.
+    // Easier: find the original down position. Cache it per-pointer.
+    if(g.startPointer===undefined){
+      g.startPointer={x:start.x,y:start.y};
+    }
+    const stage=document.getElementById('doodleStage').getBoundingClientRect();
+    // Convert the GLOBAL pointer client delta into stage-local px (1:1 since stage is unscaled)
+    const dx=e.clientX-g.startPointer.x;
+    const dy=e.clientY-g.startPointer.y;
+    obj.x=clamp(g.startObj.x+dx,0,stage.width);
+    obj.y=clamp(g.startObj.y+dy,0,stage.height);
+    renderEmojiEl(obj);
+  }else if(g.type==='pinch'&&g.pointers.size===2){
+    const pts=[...g.pointers.values()];
+    const dx=pts[1].x-pts[0].x, dy=pts[1].y-pts[0].y;
+    const dist=Math.hypot(dx,dy)||1;
+    const angle=Math.atan2(dy,dx);
+    const scale=dist/g.initDist;
+    // Clamp size to a sensible range so kids can't make a 1px speck or overflow the canvas
+    obj.size=clamp(g.startObj.size*scale,18,400);
+    obj.rotation=g.startObj.rotation+(angle-g.initAngle);
+    renderEmojiEl(obj);
+  }
+}
+function onEmojiPointerUp(e,emojiId){
+  const g=_emojiGestures.get(emojiId);
+  if(!g)return;
+  const wasDrag=_emojiPointerMoved.get(e.pointerId)===true;
+  _emojiPointerMoved.delete(e.pointerId);
+  g.pointers.delete(e.pointerId);
+  // Double-tap-to-delete: only when finger barely moved (a real tap, not a drag)
+  if(!wasDrag&&g.pointers.size===0){
+    const now=Date.now();
+    if(_lastTap.id===emojiId&&now-_lastTap.t<350){
+      _lastTap={id:null,t:0};
+      removeEmoji(emojiId);
+      return;
+    }
+    _lastTap={id:emojiId,t:now};
+  }
+  if(g.pointers.size===0){
+    // All fingers up — reset gesture state, drop the visual outline
+    _emojiGestures.delete(emojiId);
+    const el=document.querySelector(`#doodleEmojiLayer [data-eid="${emojiId}"]`);
+    if(el)el.classList.remove('touched');
+  }else if(g.pointers.size===1){
+    // Transition from pinch back to drag — re-anchor on the remaining pointer
+    const obj=findEmoji(emojiId);
+    g.type='drag';
+    g.startObj={x:obj.x,y:obj.y,size:obj.size,rotation:obj.rotation};
+    const remaining=[...g.pointers.values()][0];
+    g.startPointer={x:remaining.x,y:remaining.y};
+  }
+}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+
+/* === FLATTEN EMOJIS ONTO CANVAS for save/send === */
+// Returns a NEW canvas with all emojis rasterized on top of the bitmap.
+// We do not modify the live canvas — emojis remain editable on screen.
+function captureFlattenedCanvas(){
+  const live=document.getElementById('doodleCanvas');
+  if(!live)return null;
+  const out=document.createElement('canvas');
+  out.width=live.width;out.height=live.height;
+  const ctx=out.getContext('2d');
+  ctx.drawImage(live,0,0);
+  // Display→buffer scale (canvas CSS may differ from buffer dimensions)
+  const r=live.getBoundingClientRect();
+  const sx=live.width/r.width, sy=live.height/r.height;
+  const fontStack='"Plus Jakarta Sans","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  emojiObjects.forEach(em=>{
+    ctx.save();
+    // Convert display-space (x,y,size) → buffer-space
+    ctx.translate(em.x*sx, em.y*sy);
+    ctx.rotate(em.rotation);
+    ctx.font=`${Math.round(em.size*sx)}px ${fontStack}`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(em.char,0,0);
+    ctx.restore();
+  });
+  return out;
+}
+
+function clearDoodle(){
+  if(!dCtx)return;
+  const c=document.getElementById('doodleCanvas');
   dCtx.globalCompositeOperation='source-over';
-  dCtx.font=`${fontSize}px "Plus Jakarta Sans","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-  dCtx.textAlign='center';
-  dCtx.textBaseline='middle';
-  dCtx.fillText(currentEmoji,x,y);
-  dCtx.restore();
+  dCtx.fillStyle='#fff';dCtx.fillRect(0,0,c.width,c.height);
+  // Clear all emoji objects too
+  emojiObjects=[];
+  _emojiGestures.clear();
+  const layer=document.getElementById('doodleEmojiLayer');
+  if(layer)layer.innerHTML='';
+  const help=document.getElementById('doodleEmojiHelp');
+  if(help)help.style.display='none';
+  updTool();
 }
-function clearDoodle(){if(!dCtx)return;const c=document.getElementById('doodleCanvas');dCtx.globalCompositeOperation='source-over';dCtx.fillStyle='#fff';dCtx.fillRect(0,0,c.width,c.height);updTool();}
-function saveDoodle(){const l=document.createElement('a');l.download='rysunek.png';l.href=document.getElementById('doodleCanvas').toDataURL();l.click();}
+function saveDoodle(){
+  const flat=captureFlattenedCanvas();
+  if(!flat)return;
+  const l=document.createElement('a');
+  l.download='rysunek.png';
+  l.href=flat.toDataURL();
+  l.click();
+}
 
 /* === EVENT CREATION MODAL === */
 function openEventModal(prefillDate){
@@ -3326,7 +3540,8 @@ async function sendDoodleToParent(who){
   if(btn){btn.disabled=true;btn.textContent='⏳ Wysyłam...';}
 
   try{
-    const dataUrl=canvas.toDataURL('image/png');
+    const flat=captureFlattenedCanvas();
+    const dataUrl=(flat||canvas).toDataURL('image/png');
     const base64Img=dataUrl.split(',')[1];
     if(!base64Img){throw new Error('Pusty rysunek');}
     const dateStr=new Date().toLocaleString('pl-PL');
