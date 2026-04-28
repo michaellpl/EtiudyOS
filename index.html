@@ -2401,8 +2401,111 @@ const OAUTH_SCOPES=['https://www.googleapis.com/auth/calendar','https://www.goog
 // gapiReady kept as a permanent `false` for legacy reads; the Google API JS client is no longer
 // loaded or required. All Google REST calls go through direct fetch() with the Bearer token.
 let gapiReady=false,gisReady=false,tokenClient=null,isSignedIn=false,_signInInFlight=false;
+let _reAuthInFlight=false;
 
 function _dbg(msg,type){ try{ (window.addDebugLog||(()=>{}))(msg,type||'info'); }catch{} }
+
+/* === TOKEN LIFECYCLE === */
+// Google access tokens last 3600s. We track expiresAt locally so we can refresh
+// proactively (before it dies) rather than reactively (after a 401). Without
+// this, the user gets a "session expired" toast every hour.
+function saveOAuthToken(accessToken,expiresIn){
+  const ttl=parseInt(expiresIn,10)||3600;
+  // Subtract a 60s safety margin so we refresh slightly before actual expiry
+  const expiresAt=Date.now()+(ttl-60)*1000;
+  safeSave('lastOAuthToken',accessToken);
+  safeSave('lastOAuthExpiresAt',expiresAt);
+}
+function clearOAuthToken(){
+  safeSave('lastOAuthToken',null);
+  safeSave('lastOAuthExpiresAt',null);
+  isSignedIn=false;
+}
+function tokenIsFresh(){
+  const tok=safeLoad('lastOAuthToken',null);
+  if(!tok)return false;
+  const exp=safeLoad('lastOAuthExpiresAt',null);
+  // Legacy tokens with no recorded expiry: treat as fresh and let 401 handler refresh
+  if(!exp)return true;
+  return Date.now()<exp;
+}
+
+// Silent refresh — attempts to renew the access token without any UI prompt.
+// Returns the new access token on success, null on failure.
+async function silentRefreshToken(){
+  // De-dupe concurrent refresh attempts
+  if(_reAuthInFlight){
+    let waited=0;
+    while(_reAuthInFlight&&waited<10000){
+      await new Promise(r=>setTimeout(r,150));
+      waited+=150;
+    }
+    return safeLoad('lastOAuthToken',null);
+  }
+  if(typeof google==='undefined'||!gisReady){
+    _dbg('silentRefresh: GIS not ready','warn');
+    return null;
+  }
+  if(isFullyKiosk()){
+    // PKCE redirect flow can't refresh silently - it would full-page redirect
+    _dbg('silentRefresh: skipped on Fully Kiosk','info');
+    return null;
+  }
+  if(!tokenClient){
+    if(!initTC()){
+      _dbg('silentRefresh: initTC failed','error');
+      return null;
+    }
+  }
+  _reAuthInFlight=true;
+  return await new Promise(resolve=>{
+    const orig=tokenClient.callback;
+    let settled=false;
+    const finish=tok=>{
+      if(settled)return;
+      settled=true;
+      tokenClient.callback=orig;
+      _reAuthInFlight=false;
+      resolve(tok);
+    };
+    tokenClient.callback=resp=>{
+      if(resp.error){
+        _dbg('silentRefresh failed: '+resp.error,'warn');
+        // Don't clear the token here — the caller may want to retry interactively.
+        // But if Google flat-out rejected, the session is dead.
+        if(resp.error==='interaction_required'||resp.error==='login_required'){
+          clearOAuthToken();
+        }
+        finish(null);
+        return;
+      }
+      saveOAuthToken(resp.access_token,resp.expires_in);
+      isSignedIn=true;
+      setGS('ok','Token odświeżony ✓');
+      _dbg('✓ silent token refresh OK','info');
+      finish(resp.access_token);
+    };
+    try{
+      tokenClient.requestAccessToken({prompt:'none'});
+    }catch(e){
+      _dbg('silentRefresh threw: '+e.message,'error');
+      finish(null);
+    }
+    // Hard timeout in case Google never calls our callback
+    setTimeout(()=>finish(null),8000);
+  });
+}
+
+// Returns a valid access token, refreshing silently if needed. Returns null if
+// no valid token is obtainable (caller should treat as not signed in).
+async function ensureValidToken(){
+  const tok=safeLoad('lastOAuthToken',null);
+  if(!tok)return null;
+  if(tokenIsFresh())return tok;
+  _dbg('Token expired/expiring — silent refresh','info');
+  const fresh=await silentRefreshToken();
+  return fresh;
+}
 
 function gisLoaded(){
   console.log('✓ GIS script loaded');
@@ -2420,12 +2523,35 @@ async function attemptAutoLogin(){
   if(!gisReady||typeof google==='undefined')return;
   try{
     const lastToken=safeLoad('lastOAuthToken',null);
-    if(lastToken){
-      isSignedIn=true;
-      setGS('ok','Przywrócono logowanie');
-      console.log('✓ Auto-login successful');
-      await Promise.all([fetchCalEvents(),loadTaskLists()]);
+    if(!lastToken)return;
+
+    // CRITICAL: Initialize tokenClient now (not just on manual sign-in) so
+    // silent refresh works when the stored token expires later. Without this
+    // step the user gets "session expired" every ~1 hour.
+    if(!tokenClient){
+      if(!initTC()){
+        _dbg('Auto-login: initTC failed — silent refresh will be unavailable','error');
+        // Don't proceed with isSignedIn=true since we can't refresh
+        return;
+      }
     }
+
+    // Refresh proactively if token is already expired (PWA reopened after >1h)
+    if(!tokenIsFresh()){
+      _dbg('Auto-login: stored token expired, refreshing silently','info');
+      const fresh=await silentRefreshToken();
+      if(!fresh){
+        _dbg('Auto-login: silent refresh failed, user must re-login','warn');
+        clearOAuthToken();
+        setGS('','');
+        return;
+      }
+    }
+
+    isSignedIn=true;
+    setGS('ok','Przywrócono logowanie');
+    console.log('✓ Auto-login successful');
+    await Promise.all([fetchCalEvents(),loadTaskLists()]);
   }catch(e){
     console.log('Auto-login not available',e);
   }
@@ -2508,7 +2634,7 @@ function initTC(){
           return;
         }
         isSignedIn=true;
-        safeSave('lastOAuthToken',resp.access_token);
+        saveOAuthToken(resp.access_token,resp.expires_in);
         setGS('ok','Zalogowano ✓');
         showToast('✅ Zalogowano!','success');
         console.log('✓ User signed in');
@@ -2641,7 +2767,7 @@ async function handleOAuthCallback(){
     
     const data=await resp.json();
     isSignedIn=true;
-    safeSave('lastOAuthToken',data.access_token);
+    saveOAuthToken(data.access_token,data.expires_in);
     setGS('ok','Zalogowano ✓');
     showToast('✅ Zalogowano!','success');
     _dbg('✓ Token received via redirect flow','info');
@@ -2721,14 +2847,12 @@ async function googleSignIn(){
 function googleSignOut(){
   if(tokenClient&&typeof google!=='undefined'){
     google.accounts.id.revoke(safeLoad('lastOAuthToken',''),()=>{
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+      clearOAuthToken();
       setGS('','');
       showToast('✅ Wylogowano','success');
     });
   }else{
-    isSignedIn=false;
-    safeSave('lastOAuthToken',null);
+    clearOAuthToken();
     setGS('','');
     showToast('✅ Wylogowano','success');
   }
@@ -2832,6 +2956,21 @@ function startAutoSync(){
       Promise.all([fetchCalEvents(),loadTaskLists()]).catch(e=>console.warn('Auto-sync failed',e));
     }
   },60000); // Check every minute
+
+  // Proactive token refresh: every 4 minutes check if access token expires
+  // within the next 10 minutes; if yes, refresh silently. This prevents the
+  // user from ever seeing a "session expired" toast during normal use, since
+  // we renew the token well before it dies.
+  setInterval(async ()=>{
+    if(!isSignedIn)return;
+    const exp=safeLoad('lastOAuthExpiresAt',null);
+    if(!exp)return;
+    const remainingMs=exp-Date.now();
+    if(remainingMs<10*60*1000){
+      _dbg(`Proactive refresh — token expires in ${Math.round(remainingMs/1000)}s`,'info');
+      await silentRefreshToken();
+    }
+  },4*60*1000);
 }
 
 /* === SHOPPING (legacy stubs – merged into Google Tasks "Zakupy") === */
@@ -2990,8 +3129,8 @@ async function submitEventModal(){
   const desc=document.getElementById('evmDesc').value.trim();
 
   if(!isSignedIn){showToast('Zaloguj się przez Google najpierw','error');return;}
-  const token=safeLoad('lastOAuthToken',null);
-  if(!token){showToast('Brak tokena - zaloguj się ponownie','error');return;}
+  let token=await ensureValidToken();
+  if(!token){showToast('Sesja wygasła - zaloguj się ponownie','error');clearOAuthToken();return;}
 
   const body={summary:title};
   if(loc)body.location=loc;
@@ -3018,22 +3157,28 @@ async function submitEventModal(){
 
   const btn=document.getElementById('evmSubmitBtn');
   if(btn){btn.disabled=true;btn.textContent='Tworzę...';}
+  const doPost=async tk=>fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
+    method:'POST',
+    headers:{'Authorization':`Bearer ${tk}`,'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
   try{
-    const r=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
-      method:'POST',
-      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    });
+    let r=await doPost(token);
+    // If we get 401 anyway (token revoked etc), try one silent refresh + retry
     if(r.status===401){
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
-      showToast('Sesja wygasła - zaloguj się ponownie','error');
-      return;
+      const fresh=await silentRefreshToken();
+      if(fresh){
+        token=fresh;
+        r=await doPost(token);
+      }else{
+        clearOAuthToken();
+        showToast('Sesja wygasła - zaloguj się ponownie','error');
+        return;
+      }
     }
     if(r.status===403){
       showToast('🔒 Brak uprawnień - zaloguj ponownie z nowym scope','error',6000);
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+      clearOAuthToken();
       return;
     }
     if(!r.ok){
@@ -3073,8 +3218,8 @@ async function sendDoodleToParent(who){
   }
   const canvas=document.getElementById('doodleCanvas');
   if(!canvas){showToast('Brak rysunku','error');return;}
-  const token=safeLoad('lastOAuthToken',null);
-  if(!token){showToast('Brak tokena - zaloguj się ponownie','error');return;}
+  let token=await ensureValidToken();
+  if(!token){showToast('Sesja wygasła - zaloguj się ponownie','error');clearOAuthToken();return;}
 
   const btnId=who==='dad'?'sendDoodleDadBtn':'sendDoodleMomBtn';
   const btn=document.getElementById(btnId);
@@ -3117,22 +3262,31 @@ async function sendDoodleToParent(who){
     // rawMsg is all ASCII (boundaries, headers, base64 bodies) so plain btoa works
     const encoded=btoa(rawMsg).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 
-    const r=await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
+    const doSend=async tk=>fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
       method:'POST',
-      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      headers:{'Authorization':`Bearer ${tk}`,'Content-Type':'application/json'},
       body:JSON.stringify({raw:encoded})
     });
-
+    let r=await doSend(token);
     if(r.status===401){
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+      const fresh=await silentRefreshToken();
+      if(fresh){
+        token=fresh;
+        r=await doSend(token);
+      }else{
+        clearOAuthToken();
+        showToast('Sesja wygasła - zaloguj się ponownie','error');
+        return;
+      }
+    }
+    if(r.status===401){
+      clearOAuthToken();
       showToast('Sesja wygasła - zaloguj się ponownie','error');
       return;
     }
     if(r.status===403){
       showToast('🔒 Brak uprawnień Gmail - zaloguj ponownie','error',6000);
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+      clearOAuthToken();
       return;
     }
     if(!r.ok){
@@ -3591,39 +3745,19 @@ window.addEventListener('load',()=>{
 
 // ── Central API error handler ─────────────────────────────────────────────
 // Returns true if the caller should abort (unrecoverable), false if retryable
-let _reAuthInFlight=false;
 async function handleApiError(resp,context){
   const status=resp?.status;
   _dbg(`API error [${context}]: HTTP ${status}`,'error');
   if(status===401){
-    // Token expired — attempt silent re-auth first
-    isSignedIn=false;
-    safeSave('lastOAuthToken',null);
-    if(!_reAuthInFlight&&!isFullyKiosk()&&typeof tokenClient!=='undefined'&&tokenClient){
-      _reAuthInFlight=true;
-      _dbg('Token expired — attempting silent re-auth','warn');
-      try{
-        await new Promise((resolve,reject)=>{
-          const orig=tokenClient.callback;
-          tokenClient.callback=resp2=>{
-            tokenClient.callback=orig;
-            _reAuthInFlight=false;
-            if(resp2.error){ reject(resp2.error); return; }
-            isSignedIn=true;
-            safeSave('lastOAuthToken',resp2.access_token);
-            setGS('ok','Token odświeżony ✓');
-            _dbg('Silent re-auth OK','info');
-            resolve();
-          };
-          tokenClient.requestAccessToken({prompt:'none'});
-        });
-        return false; // token refreshed, caller can retry
-      }catch(e){
-        _reAuthInFlight=false;
-        _dbg('Silent re-auth failed: '+e,'warn');
-      }
+    // Token expired — attempt silent re-auth (don't pre-clear isSignedIn so
+    // we can keep going if refresh succeeds)
+    const fresh=await silentRefreshToken();
+    if(fresh){
+      isSignedIn=true;
+      return false; // token refreshed, caller can retry
     }
-    // Silent re-auth failed — prompt user
+    // Silent refresh failed — session truly dead
+    clearOAuthToken();
     setGS('err','Sesja wygasła');
     showToast('⚠️ Sesja Google wygasła — zaloguj ponownie','error',8000);
     _dbg('Session expired — user must re-login','error');
@@ -3632,8 +3766,7 @@ async function handleApiError(resp,context){
   if(status===403){
     _dbg(`Brak uprawnień [${context}] — wymagane ponowne zalogowanie`,'error');
     showToast('🔒 Brak uprawnień — zaloguj ponownie (nowe uprawnienia)','error',8000);
-    isSignedIn=false;
-    safeSave('lastOAuthToken',null);
+    clearOAuthToken();
     setGS('err','Brak uprawnień');
     return true;
   }
@@ -3802,9 +3935,19 @@ async function toggleTask(listId,taskId,newStatus){
     });
     
     if(!r.ok){
-      await handleApiError(r,'toggleTask');
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+      const aborted=await handleApiError(r,'toggleTask');
+      if(aborted)return;
+      // handleApiError refreshed the token — retry once
+      const tk=safeLoad('lastOAuthToken',null);
+      if(tk){
+        const r2=await fetch(`https://www.googleapis.com/tasks/v1/lists/${encodeURIComponent(lid)}/tasks/${encodeURIComponent(id)}`,{
+          method:'PATCH',
+          headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+          body:JSON.stringify({status:newStatus})
+        });
+        if(!r2.ok)throw new Error(`HTTP ${r2.status}`);
+      }
+      await loadTasks();
       return;
     }
     
@@ -3867,8 +4010,7 @@ async function sendDailySummaryEmail(manual=false){
     });
     
     if(r.status===401){
-      isSignedIn=false;
-      safeSave('lastOAuthToken',null);
+      clearOAuthToken();
       return;
     }
     
