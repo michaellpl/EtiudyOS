@@ -212,8 +212,6 @@ html,body{
 .task-cat-btn{flex:1;padding:11px 6px;border-radius:var(--r-sm);border:2px solid transparent;background:var(--surface);color:var(--text-dim);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:var(--shadow);}
 .task-cat-btn:hover{background:var(--surface2);}
 .task-cat-btn.active.cat-zakupy{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;}
-.task-cat-btn.active.cat-dom{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;}
-.task-cat-btn.active.cat-szkola{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;}
 
 /* ========== SHOPPING ========== */
 .shop-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
@@ -490,7 +488,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <div id="sideNavTime">--:--</div>
   <button class="nav-btn active" onclick="switchTab('home')" data-tab="home"><span class="nav-icon">🏠</span>Dom</button>
   <button class="nav-btn" onclick="switchTab('calendar')" data-tab="calendar"><span class="nav-icon">📅</span>Kalendarz</button>
-  <button class="nav-btn" onclick="switchTab('tasks')" data-tab="tasks"><span class="nav-icon">📋</span>Lista</button>
+  <button class="nav-btn" onclick="switchTab('tasks')" data-tab="tasks"><span class="nav-icon">📋</span>Zakupy</button>
   <button class="nav-btn" onclick="switchTab('chores')" data-tab="chores"><span class="nav-icon">🧹</span>Obowiązki</button>
   <button class="nav-btn" onclick="switchTab('timetable')" data-tab="timetable"><span class="nav-icon">📚</span>Lekcje</button>
   <button class="nav-btn" onclick="switchTab('cameras')" data-tab="cameras"><span class="nav-icon">📷</span>Kamery</button>
@@ -513,8 +511,6 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
         <div id="clockGreeting">Dzień dobry!</div>
         <div id="clockQuickActions">
           <button class="quick-btn" onclick="switchTab('tasks');switchTaskCat('Zakupy');document.getElementById('newTaskInput').focus();">🛒 Zakupy</button>
-          <button class="quick-btn" onclick="switchTab('tasks');switchTaskCat('Dom');document.getElementById('newTaskInput').focus();">🏠 Dom</button>
-          <button class="quick-btn" onclick="switchTab('tasks');switchTaskCat('Szkoła');document.getElementById('newTaskInput').focus();">📚 Szkoła</button>
           <button class="quick-btn" onclick="switchTab('chores');document.getElementById('choreInput').focus();">➕ Obowiązek</button>
           <button class="quick-btn" onclick="switchTab('calendar');">📅 Kalendarz</button>
           <button class="quick-btn" onclick="openEventModal();">📆 Nowe wydarzenie</button>
@@ -595,8 +591,6 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <div id="tab-tasks" class="tab-panel">
     <div class="task-cat-bar">
       <button class="task-cat-btn active cat-zakupy" onclick="switchTaskCat('Zakupy')" data-cat="Zakupy">🛒 Zakupy</button>
-      <button class="task-cat-btn cat-dom" onclick="switchTaskCat('Dom')" data-cat="Dom">🏠 Dom</button>
-      <button class="task-cat-btn cat-szkola" onclick="switchTaskCat('Szkoła')" data-cat="Szkoła">📚 Szkoła</button>
     </div>
     <div class="card">
       <div id="taskListItems"><div class="empty-state"><span class="ei">✅</span>Zaloguj przez Google, aby zobaczyć zadania</div></div>
@@ -4136,9 +4130,7 @@ async function fetchCalEvents(){
 
 /* === TASK CATEGORIES === */
 const TASK_CATEGORIES=[
-  {name:'Zakupy',emoji:'🛒',cls:'cat-zakupy'},
-  {name:'Dom',emoji:'🏠',cls:'cat-dom'},
-  {name:'Szkoła',emoji:'📚',cls:'cat-szkola'}
+  {name:'Zakupy',emoji:'🛒',cls:'cat-zakupy'}
 ];
 let activeCat='Zakupy';
 let taskListIds=safeLoad('taskListIds',{});
