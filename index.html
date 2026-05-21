@@ -653,10 +653,14 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
     <div class="card">
       <div id="doodleTools">
         <button class="tool-btn active-tool" id="toolPen" onclick="setTool('pen')">✏️ Rysuj</button>
+        <button class="tool-btn" id="toolRainbow" onclick="setTool('rainbow')">🌈 Tęcza</button>
         <button class="tool-btn" id="toolEraser" onclick="setTool('eraser')">🧹 Gumka</button>
-        <button class="tool-btn" id="toolEmoji" onclick="toggleEmojiPicker()">😀 Dodaj emoji</button>
         <input type="color" id="brushColor" value="#1a1a2e" title="Kolor" onchange="updTool()">
         <input type="range" id="brushSize" min="2" max="40" value="6" title="Rozmiar pędzla" onchange="updTool()">
+        <button class="tool-btn" id="toolEmoji" onclick="toggleEmojiPicker()">😀 Emoji</button>
+        <button class="tool-btn" id="toolText" onclick="addTextSticker()">🅰️ Tekst</button>
+        <button class="tool-btn" id="toolSym" onclick="cycleSym()">🪞 Symetria</button>
+        <button class="tool-btn" id="toolUndo" onclick="undoDoodle()">↶ Cofnij</button>
         <button class="tool-btn" onclick="clearDoodle()">🗑️ Wyczyść</button>
         <button class="tool-btn" onclick="saveDoodle()">💾 Zapisz</button>
         <button class="tool-btn tool-send-dad" id="sendDoodleDadBtn" onclick="sendDoodleToParent('dad')">👨 Wyślij do taty</button>
@@ -2931,6 +2935,15 @@ function renderCameras(){
 
 /* === DOODLE === */
 let dInited=false,dCtx,isDrawing=false,lX=0,lY=0,dTool='pen';
+// Rainbow brush: hue cycles as the user draws. Persists across strokes for a continuous rainbow.
+let rainbowHue=0;
+// Symmetry mode: 'off' | 'mirror-h' (vertical axis) | 'mirror-v' (horizontal axis) | 'quad' (both) | 'radial' (8-way)
+let symMode='off';
+const SYM_MODES=['off','mirror-h','mirror-v','quad','radial'];
+const SYM_LABELS={'off':'🪞 Symetria','mirror-h':'🪞 Lustro ↔','mirror-v':'🪞 Lustro ↕','quad':'🪞 Lustro ✚','radial':'🪞 Kalejdoskop'};
+// Undo stack: snapshots of (imageData + emojiObjects). Capped to bound memory on the tablet.
+const DOODLE_MAX_UNDO=15;
+let doodleUndoStack=[];
 
 // Curated kid-friendly emoji palette grouped by category
 const DOODLE_EMOJI_CATEGORIES=[
@@ -2976,6 +2989,8 @@ function initDoodle(){
   updTool();
 }
 function dS(e){
+  // Snapshot once at the START of each stroke so undo restores the canvas to its pre-stroke state.
+  snapshotDoodle();
   isDrawing=true;
   const r=e.target.getBoundingClientRect();
   // Convert display px → canvas buffer px so drawing aligns with the bitmap
@@ -2989,20 +3004,141 @@ function dM(e){
   const r=e.target.getBoundingClientRect();
   const sx=e.target.width/r.width, sy=e.target.height/r.height;
   const x=(e.clientX-r.left)*sx, y=(e.clientY-r.top)*sy;
-  dCtx.beginPath();dCtx.moveTo(lX,lY);dCtx.lineTo(x,y);dCtx.stroke();
+  // Rainbow brush advances hue per segment; eraser ignores strokeStyle (destination-out) so this is a no-op for eraser.
+  if(dTool==='rainbow'){
+    rainbowHue=(rainbowHue+3)%360;
+    dCtx.strokeStyle=`hsl(${rainbowHue},90%,50%)`;
+  }
+  drawSegmentWithSymmetry(lX,lY,x,y);
   lX=x;lY=y;
 }
 function dE(){isDrawing=false;}
+
+/* Draw a single line segment in the current canvas state. */
+function drawDoodleSegment(x1,y1,x2,y2){
+  dCtx.beginPath();dCtx.moveTo(x1,y1);dCtx.lineTo(x2,y2);dCtx.stroke();
+}
+/* Draw the primary segment plus mirrored/rotated copies based on symMode. */
+function drawSegmentWithSymmetry(x1,y1,x2,y2){
+  drawDoodleSegment(x1,y1,x2,y2);
+  if(symMode==='off')return;
+  const w=dCtx.canvas.width, h=dCtx.canvas.height;
+  const cx=w/2, cy=h/2;
+  if(symMode==='mirror-h'){
+    drawDoodleSegment(w-x1,y1,w-x2,y2);
+  }else if(symMode==='mirror-v'){
+    drawDoodleSegment(x1,h-y1,x2,h-y2);
+  }else if(symMode==='quad'){
+    drawDoodleSegment(w-x1,y1,w-x2,y2);
+    drawDoodleSegment(x1,h-y1,x2,h-y2);
+    drawDoodleSegment(w-x1,h-y1,w-x2,h-y2);
+  }else if(symMode==='radial'){
+    // 8 rotational copies (every 45°) around canvas center — kaleidoscope effect.
+    for(let i=1;i<8;i++){
+      const a=i*Math.PI/4;
+      const c=Math.cos(a), s=Math.sin(a);
+      const dx1=x1-cx, dy1=y1-cy;
+      const dx2=x2-cx, dy2=y2-cy;
+      drawDoodleSegment(cx+dx1*c-dy1*s, cy+dx1*s+dy1*c, cx+dx2*c-dy2*s, cy+dx2*s+dy2*c);
+    }
+  }
+}
+/* Cycle through symmetry modes; update button label + active state. */
+function cycleSym(){
+  const i=SYM_MODES.indexOf(symMode);
+  symMode=SYM_MODES[(i+1)%SYM_MODES.length];
+  const btn=document.getElementById('toolSym');
+  if(btn){
+    btn.textContent=SYM_LABELS[symMode];
+    btn.classList.toggle('active-tool', symMode!=='off');
+  }
+}
+
 function setTool(t){
   dTool=t;
   document.getElementById('toolPen').classList.toggle('active-tool',t==='pen');
   document.getElementById('toolEraser').classList.toggle('active-tool',t==='eraser');
+  const rb=document.getElementById('toolRainbow');if(rb)rb.classList.toggle('active-tool',t==='rainbow');
   // Closing the picker when switching to a non-emoji tool keeps the toolbar tidy
   const panel=document.getElementById('emojiPickerPanel');
   if(panel)panel.classList.remove('show');
   updTool();
 }
-function updTool(){if(!dCtx)return;const sz=Number(document.getElementById('brushSize').value);if(dTool==='eraser'){dCtx.globalCompositeOperation='destination-out';dCtx.strokeStyle='rgba(0,0,0,1)';dCtx.lineWidth=sz*4;}else{dCtx.globalCompositeOperation='source-over';dCtx.strokeStyle=document.getElementById('brushColor').value;dCtx.lineWidth=sz;}dCtx.lineCap='round';dCtx.lineJoin='round';}
+function updTool(){
+  if(!dCtx)return;
+  const sz=Number(document.getElementById('brushSize').value);
+  if(dTool==='eraser'){
+    dCtx.globalCompositeOperation='destination-out';
+    dCtx.strokeStyle='rgba(0,0,0,1)';
+    dCtx.lineWidth=sz*4;
+  }else if(dTool==='rainbow'){
+    dCtx.globalCompositeOperation='source-over';
+    dCtx.strokeStyle=`hsl(${rainbowHue},90%,50%)`;
+    dCtx.lineWidth=sz;
+  }else{
+    dCtx.globalCompositeOperation='source-over';
+    dCtx.strokeStyle=document.getElementById('brushColor').value;
+    dCtx.lineWidth=sz;
+  }
+  dCtx.lineCap='round';dCtx.lineJoin='round';
+}
+
+/* === UNDO ===
+ * Snapshot strategy: store an ImageData of the canvas + a deep copy of emojiObjects
+ * before each mutating action (stroke start, emoji add/move/delete, clear).
+ * Stack is capped at DOODLE_MAX_UNDO; oldest snapshots drop off the front.
+ */
+function snapshotDoodle(){
+  if(!dCtx)return;
+  try{
+    const img=dCtx.getImageData(0,0,dCtx.canvas.width,dCtx.canvas.height);
+    doodleUndoStack.push({img, emojis:JSON.parse(JSON.stringify(emojiObjects))});
+    if(doodleUndoStack.length>DOODLE_MAX_UNDO)doodleUndoStack.shift();
+  }catch(err){console.warn('doodle snapshot failed',err);}
+}
+function undoDoodle(){
+  if(!doodleUndoStack.length){showToast('Nic do cofnięcia','info');return;}
+  const s=doodleUndoStack.pop();
+  // Reset composite op before putImageData so an in-progress eraser state doesn't matter
+  dCtx.globalCompositeOperation='source-over';
+  dCtx.putImageData(s.img,0,0);
+  emojiObjects=s.emojis||[];
+  // Keep _nextEmojiId monotonic so newly added emojis after undo don't collide
+  emojiObjects.forEach(o=>{if(o.id>=_nextEmojiId)_nextEmojiId=o.id+1;});
+  const layer=document.getElementById('doodleEmojiLayer');
+  if(layer){
+    layer.innerHTML='';
+    emojiObjects.forEach(o=>renderEmojiEl(o));
+  }
+  _emojiGestures.clear();
+  const help=document.getElementById('doodleEmojiHelp');
+  if(help)help.style.display=emojiObjects.length?'block':'none';
+  // Re-apply current tool settings (stroke style/width may have been overridden during stroke)
+  updTool();
+}
+
+/* === TEXT STICKER ===
+ * Adds a text "sticker" using the same object/gesture model as emoji.
+ * Uses textContent in renderEmojiEl (no innerHTML) so it's XSS-safe even with user input.
+ */
+function addTextSticker(){
+  const raw=prompt('Wpisz tekst (max 30 znaków):','');
+  if(raw===null)return; // user cancelled
+  const text=String(raw).trim().slice(0,30);
+  if(!text)return;
+  snapshotDoodle();
+  const stage=document.getElementById('doodleStage');
+  if(!stage)return;
+  const r=stage.getBoundingClientRect();
+  const x=r.width/2+(Math.random()-0.5)*80;
+  const y=r.height/2+(Math.random()-0.5)*80;
+  const color=document.getElementById('brushColor').value||'#1a1a2e';
+  const obj={id:_nextEmojiId++,type:'text',text,color,x,y,size:56,rotation:0};
+  emojiObjects.push(obj);
+  renderEmojiEl(obj);
+  const help=document.getElementById('doodleEmojiHelp');
+  if(help)help.style.display='block';
+}
 
 /* === EMOJI PICKER (palette) === */
 function buildEmojiPicker(){
@@ -3031,6 +3167,7 @@ function toggleEmojiPicker(){
 function addEmojiToCanvas(char){
   const stage=document.getElementById('doodleStage');
   if(!stage)return;
+  snapshotDoodle();
   const r=stage.getBoundingClientRect();
   // Spawn near center with small random offset so multiple of the same emoji don't fully overlap
   const x=r.width/2+(Math.random()-0.5)*80;
@@ -3050,12 +3187,27 @@ function renderEmojiEl(obj){
     el=document.createElement('div');
     el.className='doodle-emoji';
     el.dataset.eid=String(obj.id);
-    el.textContent=obj.char;
     el.addEventListener('pointerdown',e=>onEmojiPointerDown(e,obj.id));
     el.addEventListener('pointermove',e=>onEmojiPointerMove(e,obj.id));
     el.addEventListener('pointerup',e=>onEmojiPointerUp(e,obj.id));
     el.addEventListener('pointercancel',e=>onEmojiPointerUp(e,obj.id));
     layer.appendChild(el);
+  }
+  // textContent (not innerHTML) keeps user-typed text XSS-safe.
+  if(obj.type==='text'){
+    el.textContent=obj.text;
+    el.style.color=obj.color||'#1a1a2e';
+    el.style.fontWeight='900';
+    el.style.fontFamily='"Plus Jakarta Sans",sans-serif';
+    el.style.whiteSpace='nowrap';
+    el.style.letterSpacing='-0.5px';
+  }else{
+    el.textContent=obj.char;
+    el.style.color='';
+    el.style.fontWeight='';
+    el.style.fontFamily='';
+    el.style.whiteSpace='';
+    el.style.letterSpacing='';
   }
   el.style.fontSize=obj.size+'px';
   // translate-by-center: -50%/-50% centers the box, then translate to (x,y)
@@ -3089,6 +3241,9 @@ function onEmojiPointerDown(e,emojiId){
   // Snapshot the object's state at the start of (or transition into) this gesture
   g.startObj={x:obj.x,y:obj.y,size:obj.size,rotation:obj.rotation};
   if(g.pointers.size===1){
+    // Take an undo snapshot once per gesture (first finger touches an emoji).
+    // Covers drag, pinch-resize/rotate, and double-tap-delete from a single capture point.
+    snapshotDoodle();
     g.type='drag';
   }else if(g.pointers.size===2){
     g.type='pinch';
@@ -3189,10 +3344,17 @@ function captureFlattenedCanvas(){
     // Convert display-space (x,y,size) → buffer-space
     ctx.translate(em.x*sx, em.y*sy);
     ctx.rotate(em.rotation);
-    ctx.font=`${Math.round(em.size*sx)}px ${fontStack}`;
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    ctx.fillText(em.char,0,0);
+    if(em.type==='text'){
+      ctx.font=`900 ${Math.round(em.size*sx)}px "Plus Jakarta Sans",sans-serif`;
+      ctx.fillStyle=em.color||'#1a1a2e';
+      ctx.fillText(em.text,0,0);
+    }else{
+      ctx.font=`${Math.round(em.size*sx)}px ${fontStack}`;
+      ctx.fillStyle='#000';
+      ctx.fillText(em.char,0,0);
+    }
     ctx.restore();
   });
   return out;
@@ -3200,6 +3362,8 @@ function captureFlattenedCanvas(){
 
 function clearDoodle(){
   if(!dCtx)return;
+  // Snapshot so undo can bring back the cleared work.
+  snapshotDoodle();
   const c=document.getElementById('doodleCanvas');
   dCtx.globalCompositeOperation='source-over';
   dCtx.fillStyle='#fff';dCtx.fillRect(0,0,c.width,c.height);
