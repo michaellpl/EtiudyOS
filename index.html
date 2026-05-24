@@ -2866,12 +2866,12 @@ function renderShop(){}
 // ── Kieszonkowe (Allowance) System ────────────────────────────────────────
 
 const KP_CHORES=[
-  {id:'odkurzanie', name:'Odkurzanie (parter + pokój)', emoji:'🧹', value:8, maxPerWeek:1},
+  {id:'odkurzanie', name:'Odkurzanie (parter + swój pokój)', emoji:'🧹', value:8, maxPerWeek:1},
   {id:'zmywarka',  name:'Rozpakowanie zmywarki',        emoji:'🍽️', value:5, maxPerWeek:1},
   {id:'suszarka',  name:'Rozpakowanie suszarki',        emoji:'🌬️', value:5, maxPerWeek:1},
   {id:'rzeczy',    name:'Zabranie rzeczy z suszarki',   emoji:'🚶', value:3, maxPerWeek:1},
   {id:'posilek',   name:'Sprzątanie po posiłku',        emoji:'🍴', value:4, maxPerWeek:3},
-  {id:'zakupy',    name:'Zakupy (razem z siostrą)',     emoji:'🛒', value:7.5, maxPerWeek:1, biweekly:true},
+  {id:'zakupy',    name:'Zakupy (razem z siostrą)',     emoji:'🛒', value:7.5, maxPerWeek:1},
 ];
 const KP_RULES=[
   {emoji:'🧃', name:'Śniadaniówka rozpakowana po szkole'},
@@ -2879,7 +2879,7 @@ const KP_RULES=[
   {emoji:'🗑️', name:'Śmieci do kosza gdy pełne'},
   {emoji:'👕', name:'Brudne ubrania tylko do pokoju/pralni'},
 ];
-const KP_TARGET=40;
+const KP_TARGET=50;
 const KP_COLORS=['#7c3aed','#db2777'];
 const KP_BGS=['rgba(139,92,246,.12)','rgba(236,72,153,.12)'];
 
@@ -3117,19 +3117,20 @@ function renderKieszonkowe(){
   }).filter(Boolean).join('');
 
   el.innerHTML=`
+
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:800;margin-bottom:10px;">📋 Zasady (wymagane do wypłaty)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${KP_RULES.map(r=>`<div class="kp-rule-chip">${r.emoji}&nbsp;${esc(r.name)}</div>`).join('')}</div>
+    </div>
     <div class="card" style="margin-bottom:12px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div style="font-size:16px;font-weight:800;">\ud83d\udcb0 Kieszonkowe</div>
-        <div style="font-size:12px;color:var(--text-faint);font-weight:600;">Tydzie\u0144&nbsp;${week}&nbsp;\u00b7&nbsp;${kpGetWeekLabel()}</div>
+        <div style="font-size:16px;font-weight:800;">💰 Kieszonkowe</div>
+        <div style="font-size:12px;color:var(--text-faint);font-weight:600;">Tydzień&nbsp;${week}&nbsp;·&nbsp;${kpGetWeekLabel()}</div>
       </div>
       ${renderChild('c1',0)}
       ${renderChild('c2',1)}
     </div>
-    <div class="card" style="margin-bottom:12px;">
-      <div style="font-size:14px;font-weight:800;margin-bottom:10px;">\ud83d\udccb Zasady (wymagane do wyp\u0142aty)</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">${KP_RULES.map(r=>`<div class="kp-rule-chip">${r.emoji}&nbsp;${esc(r.name)}</div>`).join('')}</div>
-    </div>
-    ${histRows?`<div class="card"><div style="font-size:14px;font-weight:800;margin-bottom:10px;">\ud83d\udcca Historia</div><div class="kp-history">${histRows}</div></div>`:''}
+    ${histRows?`<div class="card"><div style="font-size:14px;font-weight:800;margin-bottom:10px;">📊 Historia</div><div class="kp-history">${histRows}</div></div>`:''}}
   `;
 }
 
