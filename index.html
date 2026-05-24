@@ -242,6 +242,31 @@ html,body{
 .chore-who.wszyscy{background:rgba(34,197,94,.1);color:#16a34a;}
 .chore-del{background:none;border:none;color:var(--text-faint);font-size:16px;cursor:pointer;padding:4px;transition:color .15s;}
 .chore-del:hover{color:#ef4444;}
+/* ── Kieszonkowe ── */
+.kp-child-card{background:var(--surface2);border-radius:var(--r-md);padding:16px;margin-bottom:12px;}
+.kp-child-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.kp-child-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0;}
+.kp-child-name{font-size:17px;font-weight:800;flex:1;}
+.kp-balance-pill{padding:5px 12px;border-radius:var(--r-pill);font-size:16px;font-weight:800;}
+.kp-progress{height:7px;background:#e5e7eb;border-radius:4px;margin-bottom:14px;overflow:hidden;}
+.kp-progress-bar{height:100%;border-radius:4px;transition:width .4s;}
+.kp-chores-list{display:flex;flex-direction:column;}
+.kp-chore-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.06);}
+.kp-chore-row:last-child{border-bottom:none;}
+.kp-chore-emoji{font-size:18px;flex-shrink:0;}
+.kp-chore-name{flex:1;font-size:14px;font-weight:600;}
+.kp-biweekly{font-size:10px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:10px;margin-left:5px;font-weight:700;}
+.kp-chore-val{font-size:12px;color:var(--text-dim);font-weight:700;min-width:48px;text-align:right;}
+.kp-check{width:28px;height:28px;border-radius:8px;border:2px solid #dde6f4;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0;background:#fff;font-size:14px;user-select:none;}
+.kp-check.done{background:#22c55e;border-color:#22c55e;color:#fff;}
+.kp-count{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.kp-count-btn{width:26px;height:26px;border-radius:50%;border:2px solid #dde6f4;background:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;line-height:1;user-select:none;}
+.kp-count-btn.kp-count-disabled{opacity:.35;cursor:default;}
+.kp-count-num{font-size:16px;font-weight:800;min-width:20px;text-align:center;}
+.kp-rule-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:rgba(239,68,68,.08);color:#dc2626;border-radius:var(--r-pill);font-size:12px;font-weight:700;}
+.kp-hist-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.05);font-size:13px;flex-wrap:wrap;}
+.kp-hist-row:last-child{border-bottom:none;}
+.kp-hist-row span:first-child{flex:0 0 70px;color:var(--text-dim);}
 
 /* ========== TIMETABLE ========== */
 #ttTabs{display:flex;gap:8px;margin-bottom:12px;}
@@ -543,7 +568,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
       <div class="card card-lime" id="statsCard">
         <div class="lbl" style="color:rgba(0,0,0,.45);">Stan domu</div>
         <div class="srow"><span class="srow-l">🛒 Do kupienia</span><span class="srow-n" id="statShop2">0</span></div>
-        <div class="srow"><span class="srow-l">🧹 Obowiązki</span><span class="srow-n" id="statChores2">0</span></div>
+        <div class="srow"><span class="srow-l">💰 Kieszonkowe</span><span class="srow-n" id="statChores2">0</span></div>
         <div class="srow"><span class="srow-l">✅ Zadania</span><span class="srow-n" id="statTasks2">0</span></div>
       </div>
       <div class="card" id="eventsCard">
@@ -610,22 +635,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
 
   <!-- CHORES -->
   <div id="tab-chores" class="tab-panel">
-    <div class="card">
-      <div class="filter-row" id="choreFilter">
-        <button class="filter-chip active" onclick="setChoreFilter('Wszyscy')" data-who="Wszyscy">👨‍👩‍👧‍👧 Wszyscy</button>
-        <button class="filter-chip" data-child="c1" data-who="Dziecko 1" onclick="setChoreFilter('Dziecko 1')">🟣 Dziecko 1</button>
-        <button class="filter-chip" data-child="c2" data-who="Dziecko 2" onclick="setChoreFilter('Dziecko 2')">🩷 Dziecko 2</button>
-      </div>
-      <div class="add-form" style="margin-bottom:14px;">
-        <input class="add-input" id="choreInput" placeholder="Nowy obowiązek…" onkeydown="if(event.key==='Enter')addChore()">
-        <select class="add-select" id="choreWhoSel"><option>Dziecko 1</option><option>Dziecko 2</option><option>Wszyscy</option></select>
-        <button class="add-btn" onclick="addChore()">+</button>
-      </div>
-      <div id="choreList"></div>
-      <div class="mt-12">
-        <button class="btn btn-ghost btn-sm" onclick="resetChores()">🔄 Resetuj tygodniowo</button>
-      </div>
-    </div>
+    <div id="kpContainer"></div>
   </div>
 
   <!-- TIMETABLE -->
@@ -1179,7 +1189,7 @@ function switchTab(id){
   if(id==='doodle')initDoodle();
   if(id==='settings')renderSettings();
   if(id==='shopping')renderShop();
-  if(id==='chores')renderChores();
+  if(id==='chores')renderKieszonkowe();
   if(id==='calendar')renderCalendar();
   if(id==='tasks'){taskListIds=safeLoad('taskListIds',{});if(isSignedIn&&!taskListIds[activeCat])loadTaskLists();else if(isSignedIn)loadTasks();}
   if(id==='gemini')geminiOnOpen();
@@ -1663,7 +1673,8 @@ function renderFact(){
 /* === STATS === */
 function updateStats(){
   const ps=safeLoad('shopping',[]).filter(i=>!i.done).length;
-  const pc=safeLoad('chores',[]).filter(i=>!i.done).length;
+  const weekState=kpGetState(kpWeekKey());
+  const pc=Math.round(kpGetEarnings(weekState.c1||{})+kpGetEarnings(weekState.c2||{}));
   const pt=window._taskCount||0;
   [['statShop','statShop2'],['statChores','statChores2'],['statTasks','statTasks2']].forEach(([a,b],idx)=>{
     const vals=[ps,pc,pt];
@@ -2852,21 +2863,290 @@ function clearAllShop(){}
 function renderShop(){}
 
 /* === CHORES === */
-let choreFilter='Wszyscy';
-function setChoreFilter(who){choreFilter=who;document.querySelectorAll('.filter-chip').forEach(c=>c.classList.toggle('active',c.dataset.who===who));renderChores();}
-function addChore(){const inp=document.getElementById('choreInput');const name=inp.value.trim();if(!name)return;const chores=safeLoad('chores',[]);chores.push({id:Date.now(),name,who:document.getElementById('choreWhoSel').value,done:false});safeSave('chores',chores);inp.value='';renderChores();updateStats();}
-function toggleChore(id){const c=safeLoad('chores',[]);const i=c.findIndex(x=>x.id===id);if(i!==-1){c[i].done=!c[i].done;safeSave('chores',c);}renderChores();updateStats();}
-function deleteChore(id){safeSave('chores',safeLoad('chores',[]).filter(c=>c.id!==id));renderChores();updateStats();}
-function resetChores(){safeSave('chores',safeLoad('chores',[]).map(c=>({...c,done:false})));renderChores();updateStats();}
-function autoResetMon(){const now=new Date();if(now.getDay()!==1)return;const k=`cr_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}`;if(safeLoad(k,false))return;resetChores();safeSave(k,true);}
-function renderChores(){
-  let c=safeLoad('chores',[]);if(choreFilter!=='Wszyscy')c=c.filter(x=>x.who===choreFilter);
-  const all=[...c.filter(x=>!x.done),...c.filter(x=>x.done)];
+// ── Kieszonkowe (Allowance) System ────────────────────────────────────────
+
+const KP_CHORES=[
+  {id:'odkurzanie', name:'Odkurzanie (parter + pokój)', emoji:'🧹', value:8, maxPerWeek:1},
+  {id:'zmywarka',  name:'Rozpakowanie zmywarki',        emoji:'🍽️', value:5, maxPerWeek:1},
+  {id:'suszarka',  name:'Rozpakowanie suszarki',        emoji:'🌬️', value:5, maxPerWeek:1},
+  {id:'rzeczy',    name:'Zabranie rzeczy z suszarki',   emoji:'🚶', value:3, maxPerWeek:1},
+  {id:'posilek',   name:'Sprzątanie po posiłku',        emoji:'🍴', value:4, maxPerWeek:3},
+  {id:'zakupy',    name:'Zakupy (razem z siostrą)',     emoji:'🛒', value:7.5, maxPerWeek:1, biweekly:true},
+];
+const KP_RULES=[
+  {emoji:'🧃', name:'Śniadaniówka rozpakowana po szkole'},
+  {emoji:'🎒', name:'Schowany plecak po szkole'},
+  {emoji:'🗑️', name:'Śmieci do kosza gdy pełne'},
+  {emoji:'👕', name:'Brudne ubrania tylko do pokoju/pralni'},
+];
+const KP_TARGET=40;
+const KP_COLORS=['#7c3aed','#db2777'];
+const KP_BGS=['rgba(139,92,246,.12)','rgba(236,72,153,.12)'];
+
+function kpGetISOWeek(d){
+  const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  date.setUTCDate(date.getUTCDate()+4-(date.getUTCDay()||7));
+  const yStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  return{year:date.getUTCFullYear(),week:Math.ceil((((date-yStart)/86400000)+1)/7)};
+}
+function kpWeekKey(offset=0){
+  const d=new Date();d.setDate(d.getDate()+offset*7);
+  const{year,week}=kpGetISOWeek(d);
+  return`kp_${year}_W${String(week).padStart(2,'0')}`;
+}
+function kpGetState(key){return safeLoad(key,{c1:{},c2:{}});}
+function kpSaveState(key,state){safeSave(key,state);}
+function kpGetEarnings(cs){
+  return KP_CHORES.reduce((sum,ch)=>sum+Math.min(cs[ch.id]||0,ch.maxPerWeek)*ch.value,0);
+}
+function kpGetWeekLabel(offset=0){
+  const d=new Date();d.setDate(d.getDate()+offset*7);
+  const day=d.getDay()||7;
+  const mon=new Date(d);mon.setDate(d.getDate()-day+1);
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  const fmt=dt=>`${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`;
+  return`${fmt(mon)}–${fmt(sun)}`;
+}
+
+function kpToggle(childKey,choreId){
+  const key=kpWeekKey();
+  const state=kpGetState(key);
+  if(!state[childKey])state[childKey]={};
+  const ch=KP_CHORES.find(c=>c.id===choreId);
+  if(!ch)return;
+  const cur=state[childKey][choreId]||0;
+  const newVal=cur?0:1;
+  state[childKey][choreId]=newVal;
+  kpSaveState(key,state);
+  if(newVal===1)kpSendChoreNotification(childKey,ch,1);
+  renderKieszonkowe();
+  updateStats();
+}
+function kpIncrement(childKey,choreId){
+  const key=kpWeekKey();
+  const state=kpGetState(key);
+  if(!state[childKey])state[childKey]={};
+  const ch=KP_CHORES.find(c=>c.id===choreId);
+  if(!ch)return;
+  const cur=state[childKey][choreId]||0;
+  if(cur>=ch.maxPerWeek)return;
+  state[childKey][choreId]=cur+1;
+  kpSaveState(key,state);
+  kpSendChoreNotification(childKey,ch,cur+1);
+  renderKieszonkowe();
+  updateStats();
+}
+function kpDecrement(childKey,choreId){
+  const key=kpWeekKey();
+  const state=kpGetState(key);
+  if(!state[childKey])state[childKey]={};
+  const cur=state[childKey][choreId]||0;
+  if(cur<=0)return;
+  state[childKey][choreId]=cur-1;
+  kpSaveState(key,state);
+  renderKieszonkowe();
+  updateStats();
+}
+
+async function kpSendChoreNotification(childKey,chore,count){
+  if(!isSignedIn)return;
+  const settings=safeLoad('appSettings',{});
+  const recipient=(settings.dadEmail||'').trim();
+  if(!recipient||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))return;
+  const token=await ensureValidToken();
+  if(!token)return;
   const kids=getChildren();
-  document.getElementById('choreList').innerHTML=all.length?all.map(x=>{
-    const slot=(x.who===kids[0].name)?'child-1':((x.who===kids[1].name)?'child-2':'wszyscy');
-    return`<div class="chore-item${x.done?' done':''}"><div class="chore-check" onclick="toggleChore(${x.id})">${x.done?'✓':''}</div><span class="chore-name">${esc(x.name)}</span><span class="chore-who ${slot}">${esc(x.who)}</span><button class="chore-del" onclick="deleteChore(${x.id})">×</button></div>`;
-  }).join(''):`<div class="empty-state"><span class="ei">🧹</span>Brak obowiązków</div>`;
+  const childName=childKey==='c1'?kids[0].name:kids[1].name;
+  const weekKey=kpWeekKey();
+  const freshState=kpGetState(weekKey);
+  const earnings=kpGetEarnings(freshState[childKey]||{});
+  const countLabel=chore.maxPerWeek>1?` (${count}×)`:'';
+  const subj=`EtiudyOS \u2013 ${childName}: ${chore.emoji} ${chore.name}${countLabel} \u2713`;
+  const html=`<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#111;">
+<h2 style="color:#4a7ff5;margin-bottom:4px;">\u2705 Obowi\u0105zek zaliczony</h2>
+<p style="color:#6b7280;margin-top:0;">${new Date().toLocaleString('pl-PL')}</p>
+<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+<table style="width:100%;border-collapse:collapse;">
+<tr><td style="padding:10px 0;">\ud83d\udc67 Dziecko</td><td style="text-align:right;font-weight:800;font-size:18px;">${childName}</td></tr>
+<tr style="background:#f9fafb;"><td style="padding:10px 8px;">${chore.emoji} Obowi\u0105zek</td><td style="text-align:right;font-weight:700;">${chore.name}${countLabel}</td></tr>
+<tr><td style="padding:10px 0;">\ud83d\udcb0 Warto\u015b\u0107</td><td style="text-align:right;font-weight:800;font-size:18px;color:#22c55e;">+${chore.value} z\u0142</td></tr>
+<tr style="background:#f9fafb;"><td style="padding:10px 8px;">\ud83d\udcca Saldo tego tygodnia</td><td style="text-align:right;font-weight:800;font-size:20px;color:#4a7ff5;">${earnings.toFixed(1)} z\u0142</td></tr>
+</table>
+<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+<p style="color:#9ca3af;font-size:12px;">EtiudyOS \u00b7 kieszonkowe</p>
+</body></html>`;
+  try{
+    const rawMsg=[
+      `To: ${recipient}`,
+      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subj)))}?=`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      btoa(unescape(encodeURIComponent(html)))
+    ].join('\r\n');
+    const encoded=btoa(rawMsg).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify({raw:encoded})
+    });
+  }catch(e){console.warn('kp email error',e);}
+}
+
+async function kpSendWeeklySummary(){
+  if(!isSignedIn)return;
+  const settings=safeLoad('appSettings',{});
+  const recipient=(settings.dadEmail||'').trim();
+  if(!recipient||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))return;
+  const token=await ensureValidToken();
+  if(!token)return;
+  const kids=getChildren();
+  const weekKey=kpWeekKey();
+  const state=kpGetState(weekKey);
+  const{year,week}=kpGetISOWeek(new Date());
+  const subj=`EtiudyOS \u2013 Kieszonkowe do wyp\u0142aty (tydzie\u0144 ${week}/${year})`;
+  const renderRows=(ck,cname)=>{
+    const cs=state[ck]||{};
+    const rows=KP_CHORES.map(ch=>{
+      const done=cs[ch.id]||0;
+      if(!done)return'';
+      const earned=Math.min(done,ch.maxPerWeek)*ch.value;
+      const cl=ch.maxPerWeek>1?` \u00d7${done}`:'';
+      return`<tr><td style="padding:8px 4px;">${ch.emoji} ${ch.name}${cl}</td><td style="text-align:right;font-weight:700;color:#22c55e;">+${earned.toFixed(1)} z\u0142</td></tr>`;
+    }).join('');
+    const total=kpGetEarnings(cs);
+    return`<tr><td colspan="2" style="padding:12px 4px 4px;font-size:18px;font-weight:800;">${cname}</td></tr>
+${rows||'<tr><td colspan="2" style="padding:8px 4px;color:#9ca3af;">Brak zaliczonych obowi\u0105zk\u00f3w</td></tr>'}
+<tr style="background:#f0fdf4;"><td style="padding:10px 4px;font-weight:800;">\ud83d\udcb0 Do wyp\u0142aty</td><td style="text-align:right;font-size:20px;font-weight:800;color:#16a34a;">${total.toFixed(1)} z\u0142</td></tr>
+<tr><td colspan="2" style="padding:4px;"></td></tr>`;
+  };
+  const html=`<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px;color:#111;">
+<h2 style="color:#4a7ff5;margin-bottom:4px;">\ud83d\udcb0 Kieszonkowe \u2013 tydzie\u0144 ${week}/${year}</h2>
+<p style="color:#6b7280;margin-top:0;">Podsumowanie obowi\u0105zk\u00f3w do wyp\u0142aty \u00b7 ${kpGetWeekLabel()}</p>
+<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+<table style="width:100%;border-collapse:collapse;">
+${renderRows('c1',kids[0].name)}
+${renderRows('c2',kids[1].name)}
+</table>
+<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+<p style="color:#9ca3af;font-size:12px;">EtiudyOS \u00b7 ${new Date().toLocaleString('pl-PL')}</p>
+</body></html>`;
+  try{
+    const rawMsg=[
+      `To: ${recipient}`,
+      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subj)))}?=`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      btoa(unescape(encodeURIComponent(html)))
+    ].join('\r\n');
+    const encoded=btoa(rawMsg).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify({raw:encoded})
+    });
+    console.log('\u2713 Weekly allowance summary sent');
+  }catch(e){console.warn('kp weekly email error',e);}
+}
+
+function renderKieszonkowe(){
+  const el=document.getElementById('kpContainer');
+  if(!el)return;
+  const kids=getChildren();
+  const weekKey=kpWeekKey();
+  const state=kpGetState(weekKey);
+  const{week}=kpGetISOWeek(new Date());
+
+  const renderChild=(childKey,idx)=>{
+    const child=kids[idx];
+    const cs=state[childKey]||{};
+    const earnings=kpGetEarnings(cs);
+    const pct=Math.min(100,Math.round(earnings/KP_TARGET*100));
+    const color=KP_COLORS[idx];
+    const bg=KP_BGS[idx];
+    const rows=KP_CHORES.map(ch=>{
+      const done=cs[ch.id]||0;
+      if(ch.maxPerWeek===1){
+        const isDone=done>=1;
+        return`<div class="kp-chore-row">
+          <span class="kp-chore-emoji">${ch.emoji}</span>
+          <span class="kp-chore-name">${esc(ch.name)}${ch.biweekly?'<span class="kp-biweekly">co 2 tyg</span>':''}</span>
+          <span class="kp-chore-val">${ch.value}&nbsp;z\u0142</span>
+          <div class="kp-check${isDone?' done':''}" onclick="kpToggle('${childKey}','${ch.id}')">${isDone?'\u2713':''}</div>
+        </div>`;
+      }else{
+        const disabled=done>=ch.maxPerWeek;
+        return`<div class="kp-chore-row">
+          <span class="kp-chore-emoji">${ch.emoji}</span>
+          <span class="kp-chore-name">${esc(ch.name)}</span>
+          <span class="kp-chore-val">${ch.value}&nbsp;z\u0142/raz</span>
+          <div class="kp-count">
+            <button class="kp-count-btn" onclick="kpDecrement('${childKey}','${ch.id}')">\u2212</button>
+            <span class="kp-count-num" style="color:${done>0?color:'var(--text-faint)'}">${done}</span>
+            <button class="kp-count-btn${disabled?' kp-count-disabled':''}" onclick="kpIncrement('${childKey}','${ch.id}')">+</button>
+          </div>
+        </div>`;
+      }
+    }).join('');
+    return`<div class="kp-child-card" style="border-left:4px solid ${color};">
+      <div class="kp-child-header">
+        <div class="kp-child-avatar" style="background:${bg};color:${color};">${esc(child.name[0])}</div>
+        <span class="kp-child-name" style="color:${color};">${esc(child.name)}</span>
+        <div class="kp-balance-pill" style="background:${bg};color:${color};">${earnings.toFixed(1)}&nbsp;<span style="font-size:11px;font-weight:600;">/ ${KP_TARGET}&nbsp;z\u0142</span></div>
+      </div>
+      <div class="kp-progress"><div class="kp-progress-bar" style="width:${pct}%;background:${color};"></div></div>
+      <div class="kp-chores-list">${rows}</div>
+    </div>`;
+  };
+
+  const histRows=[1,2,3].map(off=>{
+    const k=kpWeekKey(-off);
+    const s=safeLoad(k,null);
+    if(!s)return'';
+    const e1=kpGetEarnings(s.c1||{});
+    const e2=kpGetEarnings(s.c2||{});
+    if(!e1&&!e2)return'';
+    return`<div class="kp-hist-row">
+      <span>${kpGetWeekLabel(-off)}</span>
+      <span style="color:${KP_COLORS[0]};font-weight:700;">${esc(kids[0].name)}: ${e1.toFixed(1)}&nbsp;z\u0142</span>
+      <span style="color:${KP_COLORS[1]};font-weight:700;">${esc(kids[1].name)}: ${e2.toFixed(1)}&nbsp;z\u0142</span>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  el.innerHTML=`
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:16px;font-weight:800;">\ud83d\udcb0 Kieszonkowe</div>
+        <div style="font-size:12px;color:var(--text-faint);font-weight:600;">Tydzie\u0144&nbsp;${week}&nbsp;\u00b7&nbsp;${kpGetWeekLabel()}</div>
+      </div>
+      ${renderChild('c1',0)}
+      ${renderChild('c2',1)}
+    </div>
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:800;margin-bottom:10px;">\ud83d\udccb Zasady (wymagane do wyp\u0142aty)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${KP_RULES.map(r=>`<div class="kp-rule-chip">${r.emoji}&nbsp;${esc(r.name)}</div>`).join('')}</div>
+    </div>
+    ${histRows?`<div class="card"><div style="font-size:14px;font-weight:800;margin-bottom:10px;">\ud83d\udcca Historia</div><div class="kp-history">${histRows}</div></div>`:''}
+  `;
+}
+
+// Legacy stubs — keep to avoid reference errors elsewhere
+let choreFilter='Wszyscy';
+function setChoreFilter(){}
+function addChore(){}
+function toggleChore(){}
+function deleteChore(){}
+function resetChores(){}
+function renderChores(){renderKieszonkowe();}
+function autoResetMon(){
+  const now=new Date();
+  if(now.getDay()!==1)return;
+  const k=`cr_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}`;
+  if(safeLoad(k,false))return;
+  safeSave(k,true);
 }
 
 /* === TIMETABLE MIGRATION ===
@@ -3989,6 +4269,14 @@ function checkDailyOperations(){
         await downloadPhotosZip('yesterday');
         await deletePhotosForDate(yesterdayStr()); // cleanup after download
       },2000);
+    }
+  }
+  // Sunday 10:00 – weekly allowance summary
+  if(now.getDay()===0&&now.getHours()===10&&now.getMinutes()===0&&now.getSeconds()<5){
+    const sk=`kpWeekly_${todayStr()}`;
+    if(!safeLoad(sk,false)){
+      safeSave(sk,true);
+      setTimeout(()=>kpSendWeeklySummary(),3000);
     }
   }
 }
