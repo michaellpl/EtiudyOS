@@ -164,6 +164,26 @@ html,body{
 .srow+.srow{margin-top:7px;}
 .srow-l{font-size:14px;font-weight:700;color:var(--dark);}
 .srow-n{font-size:22px;font-weight:800;color:var(--dark);}
+/* ========== HOME CHORES WIDGET ========== */
+.hcw-cols{display:flex;gap:8px;margin-top:0;}
+.hcw-col{flex:1;min-width:0;}
+.hcw-child-hdr{display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+.hcw-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.hcw-name{font-size:13px;font-weight:800;line-height:1;}
+.hcw-done-badge{margin-left:auto;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.hcw-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:10px;margin-bottom:4px;cursor:pointer;transition:background .15s;border:1px solid transparent;}
+.hcw-item:hover{background:rgba(0,0,0,.04);}
+.hcw-item.done{opacity:.55;}
+.hcw-check{width:18px;height:18px;border-radius:5px;border:2px solid #ccd6e8;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;transition:all .15s;}
+.hcw-item.done .hcw-check{border-color:transparent;color:#fff;}
+.hcw-item-name{font-size:12px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hcw-item.done .hcw-item-name{text-decoration:line-through;color:var(--text-faint);}
+.hcw-progress-wrap{height:4px;background:rgba(0,0,0,.08);border-radius:99px;margin-top:8px;overflow:hidden;}
+.hcw-progress-bar{height:100%;border-radius:99px;transition:width .4s ease;}
+.hcw-divider{width:1px;background:rgba(0,0,0,.06);flex-shrink:0;}
+.cam-launch-btn{display:flex;align-items:center;justify-content:center;gap:14px;background:var(--dark2);color:#fff;border:none;border-radius:var(--r);padding:22px 28px;font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;cursor:pointer;width:100%;margin-bottom:12px;transition:background .2s;}
+.cam-launch-btn:hover{background:var(--dark3);}
+.cam-launch-icon{font-size:32px;line-height:1;}
 
 /* Events */
 #eventsCard{padding:14px;}
@@ -565,11 +585,9 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
           <div id="wOutfitItems"></div>
         </div>
       </div>
-      <div class="card card-lime" id="statsCard">
-        <div class="lbl" style="color:rgba(0,0,0,.45);">Stan domu</div>
-        <div class="srow"><span class="srow-l">🛒 Do kupienia</span><span class="srow-n" id="statShop2">0</span></div>
-        <div class="srow"><span class="srow-l">💰 Kieszonkowe</span><span class="srow-n" id="statChores2">0</span></div>
-        <div class="srow"><span class="srow-l">✅ Zadania</span><span class="srow-n" id="statTasks2">0</span></div>
+      <div class="card" id="statsCard">
+        <div class="lbl">Obowiązki dziś</div>
+        <div class="hcw-cols" id="homeChoresWidget"></div>
       </div>
       <div class="card" id="eventsCard">
         <div class="lbl">Dzisiaj w kalendarzu</div>
@@ -654,6 +672,10 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
   <div id="tab-cameras" class="tab-panel">
     <div class="card">
       <div class="lbl">Kamery Unifi Protect</div>
+      <button class="cam-launch-btn" onclick="openUnifiProtect()">
+        <span class="cam-launch-icon">📷</span>
+        Otwórz Unifi Protect
+      </button>
       <div id="cameraGrid"></div>
     </div>
   </div>
@@ -743,6 +765,7 @@ body.night-mode #kioskBadge{opacity:.18;transition:opacity 6s ease;}
     </div>
     <div class="card gap-card">
       <div class="stitle">Kamery Unifi Protect</div>
+      <div class="fgroup"><label class="flbl">URL aplikacji Unifi Protect</label><input class="finput" id="unifiProtectUrl" placeholder="https://192.168.1.1/protect" oninput="saveSettings()"></div>
       <div id="camInputs"></div>
       <button class="btn btn-ghost btn-sm mt-8" onclick="addCamSlot()">+ Dodaj kamerę</button>
     </div>
@@ -2920,6 +2943,7 @@ function kpToggle(childKey,choreId){
   kpSaveState(key,state);
   if(newVal===1)kpSendChoreNotification(childKey,ch,1);
   renderKieszonkowe();
+  renderHomeChores();
   updateStats();
 }
 function kpIncrement(childKey,choreId){
@@ -3203,6 +3227,48 @@ function editTTCell(el,key){
   el.addEventListener('blur',save);el.addEventListener('keydown',kd);
 }
 
+function renderHomeChores(){
+  const el=document.getElementById('homeChoresWidget');
+  if(!el)return;
+  const kids=getChildren();
+  const weekKey=kpWeekKey();
+  const state=kpGetState(weekKey);
+  const renderCol=(childKey,idx)=>{
+    const child=kids[idx];
+    const cs=state[childKey]||{};
+    const color=KP_COLORS[idx];
+    const bg=KP_BGS[idx];
+    const singleChores=KP_CHORES.filter(c=>c.maxPerWeek===1);
+    const done=singleChores.filter(c=>(cs[c.id]||0)>=1).length;
+    const allDone=done===singleChores.length;
+    const items=singleChores.map(c=>{
+      const isDone=(cs[c.id]||0)>=1;
+      return`<div class="hcw-item${isDone?' done':''}" onclick="kpToggle('${childKey}','${c.id}');renderHomeChores();">
+        <div class="hcw-check" style="${isDone?`background:${color};border-color:${color};`:''}">
+          ${isDone?'✓':''}
+        </div>
+        <span class="hcw-item-name">${c.emoji} ${esc(c.name)}</span>
+      </div>`;
+    }).join('');
+    const pct=singleChores.length?Math.round(done/singleChores.length*100):0;
+    return`<div class="hcw-col">
+      <div class="hcw-child-hdr">
+        <div class="hcw-avatar" style="background:${bg};color:${color};">${esc(child.name[0])}</div>
+        <span class="hcw-name" style="color:${color};">${esc(child.name)}</span>
+        ${allDone?`<span class="hcw-done-badge" style="background:${bg};color:${color};">✓ Gotowe</span>`:`<span class="hcw-done-badge" style="background:rgba(0,0,0,.06);color:var(--text-faint);">${done}/${singleChores.length}</span>`}
+      </div>
+      ${items}
+      <div class="hcw-progress-wrap">
+        <div class="hcw-progress-bar" style="width:${pct}%;background:${color};"></div>
+      </div>
+    </div>`;
+  };
+  el.innerHTML=`${renderCol('c1',0)}<div class="hcw-divider"></div>${renderCol('c2',1)}`;
+}
+function openUnifiProtect(){
+  const s=safeLoad('appSettings',{});
+  window.open(s.unifiProtectUrl||'https://unifi.local/protect','_blank');
+}
 /* === CAMERAS === */
 function renderCameras(){
   const cams=(safeLoad('appSettings',{}).cameras||[]);
@@ -3898,7 +3964,7 @@ function sanitizeClientId(raw){
   //   https://xxx.apps.googleusercontent.com,  → xxx.apps.googleusercontent.com
   return (raw||'').trim().replace(/^https?:\/\//,'').replace(/[,/\s]+$/,'');
 }
-function saveSettings(){const s=safeLoad('appSettings',{});s.googleClientId=sanitizeClientId(document.getElementById('gClientId')?.value||'');s.kioskEmail=(document.getElementById('kioskEmail')?.value||'').trim();s.geminiApiKey=(document.getElementById('geminiApiKey')?.value||'').trim();s.dadEmail=(document.getElementById('dadEmail')?.value||'').trim().replace(/[\r\n]+/g,'');s.momEmail=(document.getElementById('momEmail')?.value||'').trim().replace(/[\r\n]+/g,'');s.cameras=Array.from(document.querySelectorAll('.cam-row')).map(r=>({name:r.querySelector('.cam-name-inp')?.value?.trim()||'',url:r.querySelector('.cam-url-inp')?.value?.trim()||''}));safeSave('appSettings',s);renderCameras();}
+function saveSettings(){const s=safeLoad('appSettings',{});s.googleClientId=sanitizeClientId(document.getElementById('gClientId')?.value||'');s.kioskEmail=(document.getElementById('kioskEmail')?.value||'').trim();s.geminiApiKey=(document.getElementById('geminiApiKey')?.value||'').trim();s.dadEmail=(document.getElementById('dadEmail')?.value||'').trim().replace(/[\r\n]+/g,'');s.momEmail=(document.getElementById('momEmail')?.value||'').trim().replace(/[\r\n]+/g,'');s.unifiProtectUrl=(document.getElementById('unifiProtectUrl')?.value||'').trim();s.cameras=Array.from(document.querySelectorAll('.cam-row')).map(r=>({name:r.querySelector('.cam-name-inp')?.value?.trim()||'',url:r.querySelector('.cam-url-inp')?.value?.trim()||''}));safeSave('appSettings',s);renderCameras();}
 function renderSettings(){
   const s=safeLoad('appSettings',{});
   const g=document.getElementById('gClientId');if(g)g.value=s.googleClientId||'';
@@ -3907,6 +3973,7 @@ function renderSettings(){
   const de=document.getElementById('dadEmail');if(de)de.value=s.dadEmail||'';
   const me=document.getElementById('momEmail');if(me)me.value=s.momEmail||'';
   const cams=s.cameras||[{name:'',url:''},{name:'',url:''}];
+  const upu=document.getElementById('unifiProtectUrl');if(upu)upu.value=s.unifiProtectUrl||'';
   document.getElementById('camInputs').innerHTML=cams.map((c,i)=>`<div class="cam-row" style="margin-bottom:12px;"><div class="fgroup"><label class="flbl">Kamera ${i+1} – Nazwa</label><input class="finput cam-name-inp" value="${esc(c.name)}" placeholder="np. Wejście" oninput="saveSettings()"></div><div class="fgroup"><label class="flbl">Kamera ${i+1} – URL</label><input class="finput cam-url-inp" value="${esc(c.url)}" placeholder="https://…" oninput="saveSettings()"></div></div>`).join('');
   renderBDList();
   renderKioskStats();
@@ -4312,7 +4379,7 @@ window.addEventListener('load',()=>{
   renderFact();
   autoResetMon();
   calSelected=new Date();renderCalendar();
-  updateStats();updateCurrentLesson();
+  updateStats();updateCurrentLesson();renderHomeChores();
   const s=safeLoad('appSettings',{});const g=document.getElementById('gClientId');if(g&&s.googleClientId)g.value=s.googleClientId;
   checkBirthdays();
   renderCountdown();
