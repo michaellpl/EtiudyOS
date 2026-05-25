@@ -1856,7 +1856,18 @@ function showUpcomingEvents(){
 
 function showTodayEvents(events){
   calEvents=events;
-  const evs=events.filter(e=>new Date(e.start?.dateTime||e.start?.date).toDateString()===new Date().toDateString())
+  const now=new Date();
+  const todayStr=now.toDateString();
+  const evs=events.filter(e=>{
+    const start=new Date(e.start?.dateTime||e.start?.date);
+    if(start.toDateString()!==todayStr)return false;
+    // all-day event (brak dateTime) → pokazuj cały dzień
+    if(!e.start?.dateTime)return true;
+    // wydarzenie z godziną → ukryj jeśli już się skończyło
+    const endRaw=e.end?.dateTime||e.end?.date;
+    const end=endRaw?new Date(endRaw):new Date(start.getTime()+60*60*1000);
+    return end>now;
+  })
     .sort((a,b)=>new Date(a.start?.dateTime||a.start?.date)-new Date(b.start?.dateTime||b.start?.date));
   
   // Show today's events if any, otherwise show upcoming
