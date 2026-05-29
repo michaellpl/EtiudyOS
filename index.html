@@ -3095,6 +3095,57 @@ ${renderRows('c2',kids[1].name)}
   }catch(e){console.warn('kp weekly email error',e);}
 }
 
+// Count completed chores this week for a child (capped at each chore's max).
+function kpCountChores(cs){
+  return KP_CHORES.reduce((n,ch)=>n+Math.min(cs[ch.id]||0,ch.maxPerWeek),0);
+}
+// Tally weekly head-to-head wins over the last `weeks` completed weeks.
+function kpTallyWins(weeks=8){
+  const w=[0,0];let ties=0;
+  for(let off=1;off<=weeks;off++){
+    const s=safeLoad(kpWeekKey(-off),null);
+    if(!s)continue;
+    const e1=kpGetEarnings(s.c1||{}),e2=kpGetEarnings(s.c2||{});
+    if(!e1&&!e2)continue;
+    if(e1>e2)w[0]++;else if(e2>e1)w[1]++;else ties++;
+  }
+  return{w,ties};
+}
+// Head-to-head ranking card for the current week.
+function kpRenderLeaderboard(state){
+  const kids=getChildren();
+  const e=[kpGetEarnings(state.c1||{}),kpGetEarnings(state.c2||{})];
+  const cnt=[kpCountChores(state.c1||{}),kpCountChores(state.c2||{})];
+  const{w}=kpTallyWins(8);
+  const tied=e[0]===e[1];
+  const order=tied?[0,1]:(e[0]>e[1]?[0,1]:[1,0]);
+  const lead=Math.abs(e[0]-e[1]);
+  const medals=['🥇','🥈'];
+  const statusLine=tied
+    ?(e[0]===0?'Nikt jeszcze nie zaczął w tym tygodniu':'Remis! 🤝')
+    :`${esc(kids[order[0]].name)} prowadzi o ${lead.toFixed(1)}\u00a0z\u0142`;
+  const rows=order.map((idx,rank)=>{
+    const color=KP_COLORS[idx],bg=KP_BGS[idx];
+    const pct=Math.min(100,Math.round(e[idx]/KP_TARGET*100));
+    return`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:${bg};border-radius:12px;margin-bottom:8px;">
+      <span style="font-size:22px;line-height:1;">${tied?'\u2022':medals[rank]}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+          <span style="font-weight:800;color:${color};">${esc(kids[idx].name)}</span>
+          <span style="font-weight:800;color:${color};">${e[idx].toFixed(1)}\u00a0z\u0142</span>
+        </div>
+        <div style="height:6px;background:rgba(0,0,0,.08);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:4px;"></div></div>
+        <div style="font-size:11px;color:var(--text-faint);font-weight:600;margin-top:3px;">${cnt[idx]}\u00a0zada\u0144 \u00b7 \uD83C\uDFC6 ${w[idx]}\u00a0wygranych tyg.</div>
+      </div>
+    </div>`;
+  }).join('');
+  return`<div class="card" style="margin-bottom:12px;">
+    <div style="font-size:16px;font-weight:800;margin-bottom:2px;">\uD83C\uDFC6 Ranking tygodnia</div>
+    <div style="font-size:12px;color:var(--text-faint);font-weight:600;margin-bottom:12px;">${statusLine}</div>
+    ${rows}
+  </div>`;
+}
+
 function renderKieszonkowe(){
   const el=document.getElementById('kpContainer');
   if(!el)return;
@@ -3165,6 +3216,7 @@ function renderKieszonkowe(){
       <div style="font-size:14px;font-weight:800;margin-bottom:10px;">📋 Zasady (wymagane do wypłaty)</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">${KP_RULES.map(r=>`<div class="kp-rule-chip">${r.emoji}&nbsp;${esc(r.name)}</div>`).join('')}</div>
     </div>
+    ${kpRenderLeaderboard(state)}
     <div class="card" style="margin-bottom:12px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <div style="font-size:16px;font-weight:800;">💰 Kieszonkowe</div>
@@ -3173,7 +3225,7 @@ function renderKieszonkowe(){
       ${renderChild('c1',0)}
       ${renderChild('c2',1)}
     </div>
-    ${histRows?`<div class="card"><div style="font-size:14px;font-weight:800;margin-bottom:10px;">📊 Historia</div><div class="kp-history">${histRows}</div></div>`:''}}
+    ${histRows?`<div class="card"><div style="font-size:14px;font-weight:800;margin-bottom:10px;">📊 Historia</div><div class="kp-history">${histRows}</div></div>`:''}
   `;
 }
 
@@ -4256,6 +4308,24 @@ async function deletePhotosForDate(dateStr){
     await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});
   }catch{}
 }
+// Delete all kiosk photos older than maxAgeDays (default 7). Self-healing:
+// runs on startup + daily, so old captures are purged even if the tablet was
+// off at the scheduled cleanup time.
+async function purgeOldPhotos(maxAgeDays=7){
+  try{
+    const cutoff=Date.now()-maxAgeDays*24*60*60*1000;
+    const db=await openIDB();
+    const all=await new Promise((res,rej)=>{const tx=db.transaction('photos','readonly');const req=tx.objectStore('photos').getAll();req.onsuccess=()=>res(req.result||[]);req.onerror=()=>rej(req.error);});
+    const stale=all.filter(p=>(p.ts||0)<cutoff);
+    if(!stale.length)return 0;
+    const tx=db.transaction('photos','readwrite');
+    for(const p of stale)tx.objectStore('photos').delete(p.id);
+    await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});
+    if(typeof _dbg==='function')_dbg(`Usunięto ${stale.length} zdjęć starszych niż ${maxAgeDays} dni`,'info');
+    if(typeof updateKioskBadge==='function')updateKioskBadge();
+    return stale.length;
+  }catch(e){console.warn('purgeOldPhotos failed',e);return 0;}
+}
 
 // ── Date helpers ───────────────────────────────────────────────────────────
 function todayStr(){const n=new Date();return`${n.getFullYear()}-${n.getMonth()+1}-${n.getDate()}`;}
@@ -4358,6 +4428,7 @@ function checkDailyOperations(){
         await sendDailySummaryEmail(false);
         await downloadPhotosZip('yesterday');
         await deletePhotosForDate(yesterdayStr()); // cleanup after download
+        await purgeOldPhotos(7); // delete anything older than 7 days
       },2000);
     }
   }
@@ -4411,6 +4482,7 @@ window.addEventListener('load',()=>{
   setInterval(clearExpiredCache,300000); // Clear expired cache every 5 min
   // Kiosk tracker
   initKioskCamera();
+  purgeOldPhotos(7); // enforce 7-day photo retention on every launch
   updateKioskBadge();
   document.addEventListener('touchstart',onKioskInteraction,{passive:true,capture:true});
   document.addEventListener('click',onKioskInteraction,{capture:true});
