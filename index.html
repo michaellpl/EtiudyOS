@@ -3037,17 +3037,18 @@ async function kpSendChoreNotification(childKey,chore,count){
   }catch(e){console.warn('kp email error',e);}
 }
 
-async function kpSendWeeklySummary(){
-  if(!isSignedIn)return;
+async function kpSendWeeklySummary(weekOffset=0,manual=false){
+  if(!isSignedIn){if(manual)alert('Najpierw zaloguj się do Google.');return false;}
   const settings=safeLoad('appSettings',{});
   const recipient=(settings.dadEmail||'').trim();
-  if(!recipient||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))return;
+  if(!recipient||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)){if(manual)alert('Brak adresu „Email taty" — ustaw go w Ustawieniach.');return false;}
   const token=await ensureValidToken();
-  if(!token)return;
+  if(!token){if(manual)alert('Brak ważnego tokena Google.');return false;}
   const kids=getChildren();
-  const weekKey=kpWeekKey();
+  const refDate=new Date();refDate.setDate(refDate.getDate()+weekOffset*7);
+  const weekKey=kpWeekKey(weekOffset);
   const state=kpGetState(weekKey);
-  const{year,week}=kpGetISOWeek(new Date());
+  const{year,week}=kpGetISOWeek(refDate);
   const subj=`EtiudyOS \u2013 Kieszonkowe do wyp\u0142aty (tydzie\u0144 ${week}/${year})`;
   const renderRows=(ck,cname)=>{
     const cs=state[ck]||{};
@@ -3066,7 +3067,7 @@ ${rows||'<tr><td colspan="2" style="padding:8px 4px;color:#9ca3af;">Brak zaliczo
   };
   const html=`<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px;color:#111;">
 <h2 style="color:#4a7ff5;margin-bottom:4px;">\ud83d\udcb0 Kieszonkowe \u2013 tydzie\u0144 ${week}/${year}</h2>
-<p style="color:#6b7280;margin-top:0;">Podsumowanie obowi\u0105zk\u00f3w do wyp\u0142aty \u00b7 ${kpGetWeekLabel()}</p>
+<p style="color:#6b7280;margin-top:0;">Podsumowanie obowi\u0105zk\u00f3w do wyp\u0142aty \u00b7 ${kpGetWeekLabel(weekOffset)}</p>
 <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
 <table style="width:100%;border-collapse:collapse;">
 ${renderRows('c1',kids[0].name)}
@@ -3086,13 +3087,16 @@ ${renderRows('c2',kids[1].name)}
       btoa(unescape(encodeURIComponent(html)))
     ].join('\r\n');
     const encoded=btoa(rawMsg).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
+    const r=await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
       method:'POST',
       headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({raw:encoded})
     });
+    if(!r.ok){if(manual)alert('B\u0142\u0105d wysy\u0142ki Gmail ('+r.status+').');return false;}
     console.log('\u2713 Weekly allowance summary sent');
-  }catch(e){console.warn('kp weekly email error',e);}
+    if(manual)alert('Wys\u0142ano podsumowanie kieszonkowego do: '+recipient);
+    return true;
+  }catch(e){console.warn('kp weekly email error',e);if(manual)alert('B\u0142\u0105d wysy\u0142ki: '+e.message);return false;}
 }
 
 // Count completed chores this week for a child (capped at each chore's max).
@@ -3220,7 +3224,10 @@ function renderKieszonkowe(){
     <div class="card" style="margin-bottom:12px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <div style="font-size:16px;font-weight:800;">💰 Kieszonkowe</div>
-        <div style="font-size:12px;color:var(--text-faint);font-weight:600;">Tydzień&nbsp;${week}&nbsp;·&nbsp;${kpGetWeekLabel()}</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:12px;color:var(--text-faint);font-weight:600;">Tydzień&nbsp;${week}&nbsp;·&nbsp;${kpGetWeekLabel()}</div>
+          <button class="btn btn-dark btn-sm" onclick="kpSendWeeklySummary(0,true)">📧 Wyślij podsumowanie</button>
+        </div>
       </div>
       ${renderChild('c1',0)}
       ${renderChild('c2',1)}
@@ -4432,13 +4439,21 @@ function checkDailyOperations(){
       },2000);
     }
   }
-  // Sunday 10:00 – weekly allowance summary
-  if(now.getDay()===0&&now.getHours()===10&&now.getMinutes()===0&&now.getSeconds()<5){
-    const sk=`kpWeekly_${todayStr()}`;
-    if(!safeLoad(sk,false)){
-      safeSave(sk,true);
-      setTimeout(()=>kpSendWeeklySummary(),3000);
-    }
+  // Weekly allowance summary — robust catch-up.
+  // The most recent "due" week is the ISO week whose Sunday-10:00 deadline has
+  // already passed. On Sunday we owe the current week once it's >=10:00, otherwise
+  // (and on every other day) we owe last week. We attempt on EVERY tick until it
+  // succeeds, so a tablet that was asleep/backgrounded at 10:00 still sends as soon
+  // as it wakes — instead of needing to be alive in a 5-second window.
+  const dueOffset=(now.getDay()===0&&now.getHours()<10)?-1:(now.getDay()===0?0:-1);
+  const dueKey=kpWeekKey(dueOffset);
+  const lastSent=safeLoad('kpLastSummaryWeek','');
+  if(!lastSent){
+    // First run after this update: baseline silently so we never retro-email an
+    // old/empty week on deploy. The manual button covers the current week.
+    safeSave('kpLastSummaryWeek',dueKey);
+  }else if(lastSent!==dueKey){
+    kpSendWeeklySummary(dueOffset,false).then(ok=>{if(ok)safeSave('kpLastSummaryWeek',dueKey);});
   }
 }
 
