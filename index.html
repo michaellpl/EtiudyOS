@@ -3037,6 +3037,16 @@ async function kpSendChoreNotification(childKey,chore,count){
   }catch(e){console.warn('kp email error',e);}
 }
 
+// Manual "send now" for the current week. If pressed at the real due moment
+// (Sunday >=10:00) we record it so the auto catch-up doesn't send a duplicate.
+// If pressed mid-week it's just an ad-hoc extra and leaves the automatic
+// Sunday send untouched.
+async function kpManualSend(){
+  const ok=await kpSendWeeklySummary(0,true);
+  const n=new Date();
+  if(ok&&n.getDay()===0&&n.getHours()>=10)safeSave('kpLastSummaryWeek',kpWeekKey(0));
+}
+
 async function kpSendWeeklySummary(weekOffset=0,manual=false){
   if(!isSignedIn){if(manual)alert('Najpierw zaloguj się do Google.');return false;}
   const settings=safeLoad('appSettings',{});
@@ -3226,7 +3236,7 @@ function renderKieszonkowe(){
         <div style="font-size:16px;font-weight:800;">💰 Kieszonkowe</div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="font-size:12px;color:var(--text-faint);font-weight:600;">Tydzień&nbsp;${week}&nbsp;·&nbsp;${kpGetWeekLabel()}</div>
-          <button class="btn btn-dark btn-sm" onclick="kpSendWeeklySummary(0,true)">📧 Wyślij podsumowanie</button>
+          <button class="btn btn-dark btn-sm" onclick="kpManualSend()">📧 Wyślij podsumowanie</button>
         </div>
       </div>
       ${renderChild('c1',0)}
@@ -4448,12 +4458,18 @@ function checkDailyOperations(){
   const dueOffset=(now.getDay()===0&&now.getHours()<10)?-1:(now.getDay()===0?0:-1);
   const dueKey=kpWeekKey(dueOffset);
   const lastSent=safeLoad('kpLastSummaryWeek','');
-  if(!lastSent){
-    // First run after this update: baseline silently so we never retro-email an
-    // old/empty week on deploy. The manual button covers the current week.
-    safeSave('kpLastSummaryWeek',dueKey);
-  }else if(lastSent!==dueKey){
-    kpSendWeeklySummary(dueOffset,false).then(ok=>{if(ok)safeSave('kpLastSummaryWeek',dueKey);});
+  if(lastSent!==dueKey){
+    const ds=safeLoad(dueKey,null);
+    const dueHasData=!!ds&&(kpGetEarnings(ds.c1||{})>0||kpGetEarnings(ds.c2||{})>0);
+    if(!lastSent&&!dueHasData){
+      // First run after this update AND nothing to report for the due week:
+      // baseline silently so we never retro-email an old/empty week on deploy.
+      safeSave('kpLastSummaryWeek',dueKey);
+    }else{
+      // Normal case (incl. first run when the due week HAS chores): auto-send.
+      // Retries on every tick until it succeeds; flag set only after delivery.
+      kpSendWeeklySummary(dueOffset,false).then(ok=>{if(ok)safeSave('kpLastSummaryWeek',dueKey);});
+    }
   }
 }
 
