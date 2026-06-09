@@ -2849,6 +2849,7 @@ function kpDecrement(childKey,choreId){
   if(cur<=0)return;
   state[childKey][choreId]=cur-1;
   kpSaveState(key,state);
+  kpSendDeductionAlert(childKey,choreId,cur-1); // fire-and-forget: photo + email
   renderKieszonkowe();
   updateStats();
 }
@@ -2897,6 +2898,101 @@ async function kpSendChoreNotification(childKey,chore,count){
       body:JSON.stringify({raw:encoded})
     });
   }catch(e){console.warn('kp email error',e);}
+}
+
+function blobToBase64(blob){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(String(r.result).split(',')[1]||'');
+    r.onerror=()=>rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+// Minus pressed on a chore -> snap a photo (bypassing the 2-min tracker cooldown)
+// and email Dad that something was deducted, with the photo attached when available.
+async function kpSendDeductionAlert(childKey,choreId,newCount){
+  // Capture the moment first - best-effort, independent of isSignedIn/token.
+  let blob=null;
+  try{
+    blob=await captureKioskPhotoBlob();
+    if(blob){await savePhotoToIDB(blob);updateKioskBadge();}
+  }catch(e){console.warn('deduction photo failed',e);}
+  if(!isSignedIn)return;
+  const settings=safeLoad('appSettings',{});
+  const recipient=(settings.dadEmail||'').trim();
+  if(!recipient||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))return;
+  const token=await ensureValidToken();
+  if(!token)return;
+  const kids=getChildren();
+  const childName=childKey==='c1'?kids[0].name:kids[1].name;
+  const chore=KP_CHORES.find(c=>c.id===choreId);
+  const choreName=chore?`${chore.emoji} ${chore.name}`:choreId;
+  const weekKey=kpWeekKey();
+  const freshState=kpGetState(weekKey);
+  const earnings=kpGetEarnings(freshState[childKey]||{});
+  const when=new Date().toLocaleString('pl-PL');
+  const subj=`EtiudyOS \u2013 ${childName}: odj\u0119to ${chore?chore.name:choreId} \u2212`;
+  const photoNote=blob?'':'<p style="color:#ef4444;font-weight:700;margin-top:16px;">\u26a0\ufe0f Brak zdj\u0119cia \u2013 kamera niedost\u0119pna w momencie odj\u0119cia.</p>';
+  const html=`<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#111;">
+<h2 style="color:#ef4444;margin-bottom:4px;">\u2212 Odj\u0119to obowi\u0105zek</h2>
+<p style="color:#6b7280;margin-top:0;">${esc(when)}</p>
+<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+<table style="width:100%;border-collapse:collapse;">
+<tr><td style="padding:10px 0;">\ud83d\udc67 Dziecko</td><td style="text-align:right;font-weight:800;font-size:18px;">${esc(childName)}</td></tr>
+<tr style="background:#f9fafb;"><td style="padding:10px 8px;">Obowi\u0105zek</td><td style="text-align:right;font-weight:700;">${esc(choreName)}</td></tr>
+<tr><td style="padding:10px 0;">\ud83d\udd22 Zaliczone w tym tygodniu</td><td style="text-align:right;font-weight:800;">${newCount}\u00d7</td></tr>
+<tr style="background:#f9fafb;"><td style="padding:10px 8px;">\ud83d\udcca Saldo tego tygodnia</td><td style="text-align:right;font-weight:800;font-size:20px;color:#4a7ff5;">${earnings.toFixed(1)} z\u0142</td></tr>
+</table>
+${photoNote}
+<hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+<p style="color:#9ca3af;font-size:12px;">EtiudyOS \u00b7 powiadomienie o odj\u0119ciu</p>
+</body></html>`;
+  try{
+    const subjHeader=`=?UTF-8?B?${btoa(unescape(encodeURIComponent(subj)))}?=`;
+    const htmlB64=btoa(unescape(encodeURIComponent(html)));
+    let rawMsg;
+    if(blob){
+      const imgB64=(await blobToBase64(blob)).replace(/.{76}/g,'$&\r\n');
+      const boundary='etiudyos_'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+      const fname='minus_'+Date.now()+'.jpg';
+      rawMsg=[
+        `To: ${recipient}`,
+        `Subject: ${subjHeader}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/html; charset=UTF-8`,
+        `Content-Transfer-Encoding: base64`,
+        ``,
+        htmlB64,
+        `--${boundary}`,
+        `Content-Type: image/jpeg`,
+        `Content-Transfer-Encoding: base64`,
+        `Content-Disposition: attachment; filename="${fname}"`,
+        ``,
+        imgB64,
+        `--${boundary}--`
+      ].join('\r\n');
+    }else{
+      rawMsg=[
+        `To: ${recipient}`,
+        `Subject: ${subjHeader}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: text/html; charset=UTF-8`,
+        `Content-Transfer-Encoding: base64`,
+        ``,
+        htmlB64
+      ].join('\r\n');
+    }
+    const encoded=btoa(rawMsg).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send',{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify({raw:encoded})
+    });
+  }catch(e){console.warn('kp deduction email error',e);}
 }
 
 // Manual "send now" for the current week. If pressed at the real due moment
@@ -4236,11 +4332,10 @@ async function initKioskCamera(){
   }
 }
 
-async function maybeTakePhoto(){
-  if(!_camReady)return;
-  const now=Date.now();
-  if(now-_lastPhotoTs<PHOTO_COOLDOWN)return;
-  _lastPhotoTs=now;
+// Grab one frame from the kiosk cam right now, ignoring the cooldown.
+// Returns a JPEG Blob, or null if the camera isn't ready / capture failed.
+async function captureKioskPhotoBlob(){
+  if(!_camReady)return null;
   try{
     const vid=document.getElementById('kioskCam');
     const canvas=document.getElementById('kioskCanvas');
@@ -4248,13 +4343,22 @@ async function maybeTakePhoto(){
     canvas.height=vid.videoHeight||480;
     canvas.getContext('2d').drawImage(vid,0,0);
     const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.82));
-    if(blob&&blob.size>1000){
-      await savePhotoToIDB(blob);
-      // brief screen flash to confirm
-      const fl=document.createElement('div');fl.className='kiosk-flash';document.body.appendChild(fl);setTimeout(()=>fl.remove(),300);
-      updateKioskBadge();
-    }
-  }catch(e){console.warn('Photo capture failed',e);}
+    return(blob&&blob.size>1000)?blob:null;
+  }catch(e){console.warn('Photo capture failed',e);return null;}
+}
+
+async function maybeTakePhoto(){
+  if(!_camReady)return;
+  const now=Date.now();
+  if(now-_lastPhotoTs<PHOTO_COOLDOWN)return;
+  _lastPhotoTs=now;
+  const blob=await captureKioskPhotoBlob();
+  if(blob){
+    await savePhotoToIDB(blob);
+    // brief screen flash to confirm
+    const fl=document.createElement('div');fl.className='kiosk-flash';document.body.appendChild(fl);setTimeout(()=>fl.remove(),300);
+    updateKioskBadge();
+  }
 }
 
 // ── Touch handler ──────────────────────────────────────────────────────────
